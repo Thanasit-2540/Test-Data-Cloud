@@ -9,7 +9,23 @@ app.use(express.json());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let mockDatabase = [];
+const admin = require('firebase-admin');
+
+// ตั้งค่า Firebase (รองรับทั้งรันในเครื่องตัวเอง และรันบน Render.com)
+let serviceAccount;
+if (process.env.FIREBASE_CREDENTIALS) {
+    // ดึงจาก Environment Variables ของ Render.com
+    serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+} else {
+    // ดึงจากไฟล์ในเครื่อง (Local)
+    serviceAccount = require('./firebase-key.json');
+}
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
 
 // รายชื่อสถานที่ท่องเที่ยวและรูปภาพ (เตรียมไว้สำหรับสุ่ม)
 const travelDestinations = [
@@ -20,34 +36,53 @@ const travelDestinations = [
     { place: "แกรนด์แคนยอน", country: "สหรัฐอเมริกา", image: "https://images.unsplash.com/photo-1474044159687-1ee9f3a51722?w=400&q=80" }
 ];
 
-app.get('/api/data', (req, res) => {
-    res.json(mockDatabase);
+// API: ดึงข้อมูลทั้งหมดจาก Firestore
+app.get('/api/data', async (req, res) => {
+    try {
+        const snapshot = await db.collection('travels').orderBy('timestamp', 'asc').get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// API: สุ่มสถานที่ท่องเที่ยว
-app.post('/api/generate', (req, res) => {
-    // สุ่มเลือก 1 สถานที่จาก Array
-    const randomIndex = Math.floor(Math.random() * travelDestinations.length);
-    const selectedTravel = travelDestinations[randomIndex];
+// API: สุ่มสถานที่ท่องเที่ยวและบันทึกลง Firestore
+app.post('/api/generate', async (req, res) => {
+    try {
+        const randomIndex = Math.floor(Math.random() * travelDestinations.length);
+        const selectedTravel = travelDestinations[randomIndex];
 
-    const randomData = {
-        id: Date.now(),
-        place: selectedTravel.place,
-        country: selectedTravel.country,
-        imageUrl: selectedTravel.image,
-        timestamp: new Date().toLocaleString('th-TH')
-    };
+        const randomData = {
+            place: selectedTravel.place,
+            country: selectedTravel.country,
+            imageUrl: selectedTravel.image,
+            timestamp: new Date().toLocaleString('th-TH')
+        };
 
-    mockDatabase.push(randomData);
-    res.json({ message: "สุ่มที่เที่ยวสำเร็จ!", data: randomData });
+        const docRef = await db.collection('travels').add(randomData);
+        res.json({ message: "สุ่มที่เที่ยวสำเร็จ!", data: { id: docRef.id, ...randomData } });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/data', (req, res) => {
-    mockDatabase = [];
-    res.json({ message: "ล้างข้อมูลทั้งหมดแล้ว" });
+// API: ล้างข้อมูลทั้งหมดใน Firestore
+app.delete('/api/data', async (req, res) => {
+    try {
+        const snapshot = await db.collection('travels').get();
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        res.json({ message: "ล้างข้อมูลทั้งหมดแล้ว" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 เซิร์ฟเวอร์ทำงานแล้วที่: http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 เซิร์ฟเวอร์ทำงานแล้วที่พอร์ต: ${PORT}`);
 });
