@@ -658,7 +658,8 @@
         }
         filteredHolidays.forEach(h => {
             const dateStr = new Date(h.holiday_date).toLocaleDateString('th-TH');
-            holBody.innerHTML += `<tr><td>${dateStr}</td><td>${h.description}</td><td><button class="btn-delete" onclick="deleteHoliday(${h.id})">🗑️ ลบ</button></td></tr>`;
+            // แก้ให้ส่งค่า holiday_date ไปแทน id (เพราะฐานข้อมูลลูกค้าอาจจะไม่มีคอลัมน์ id)
+            holBody.innerHTML += `<tr><td>${dateStr}</td><td>${h.description}</td><td><button class="btn-delete" onclick="deleteHoliday('${h.holiday_date}')">🗑️ ลบ</button></td></tr>`;
         });
 
         // [2] อัปเดตตัวเลข ลบข้อมูลเก่าเกิน 70 วัน
@@ -701,7 +702,7 @@
                     <td><strong>${item.checkpoint}</strong></td>
                     <td>${item.Location || '-'}</td>
                     <td><a href="${qrImageUrl}" target="_blank" class="btn-qr">🖼️ ดูรูป / โหลด QR Code</a></td>
-                    <td><button class="btn-delete" onclick="deleteQRCode(${item.id}, '${item.checkpoint}')">🗑️ ลบ</button></td>
+                    <td><button class="btn-delete" onclick="deleteQRCode('${item.checkpoint}')">🗑️ ลบ</button></td>
                 </tr>
             `;
         });
@@ -935,7 +936,8 @@
     // ล้างวันหยุดทั้งหมด (กรณีขึ้นปีใหม่)
     async function deleteAllHolidays() {
         if(!confirm('🚨 ยืนยันการ "ล้างวันหยุดทั้งหมด" ในระบบใช่หรือไม่?\n(เมื่อล้างแล้ว ต้องสร้างใหม่)')) return;
-        const { error } = await dbClient.from('holidays').delete().neq('id', 0);
+        // ใช้ neq('holiday_date', '1900-01-01') แทน id เพื่อกวาดลบทั้งหมดแบบไม่พึ่งคอลัมน์ id
+        const { error } = await dbClient.from('holidays').delete().neq('holiday_date', '1900-01-01');
         if (error) alert("Error: " + error.message);
         else alert("🗑️ ล้างวันหยุดทั้งหมดเรียบร้อยแล้ว!");
     }
@@ -956,9 +958,10 @@
         else { document.getElementById('newHolidayDate').value=''; document.getElementById('newHolidayDesc').value=''; }
     }
     
-    async function deleteHoliday(id) {
+    // เปลี่ยนจากรับ id เป็นรับ holiday_date
+    async function deleteHoliday(holidayDate) {
         if(!confirm('ลบวันหยุดนี้?')) return;
-        const { error } = await dbClient.from('holidays').delete().eq('id', id);
+        const { error } = await dbClient.from('holidays').delete().eq('holiday_date', holidayDate);
         if (error) alert("Error: " + error.message);
     }
     
@@ -986,9 +989,9 @@
         }
     }
     
-    async function deleteQRCode(id, name) {
-        if(!confirm(`ลบจุดตรวจ ${name}?`)) return;
-        const { error } = await dbClient.from('QRCode').delete().eq('id', id);
+    async function deleteQRCode(checkpointName) {
+        if(!confirm(`ลบจุดตรวจ ${checkpointName}?`)) return;
+        const { error } = await dbClient.from('QRCode').delete().eq('checkpoint', checkpointName);
         if(error) alert("Error: " + error.message);
     }
 
