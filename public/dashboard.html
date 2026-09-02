@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แดชบอร์ดตู้ไฟ MDB</title>
+    <!-- นำเข้าไลบรารีของ Supabase สำหรับเชื่อมต่อฐานข้อมูล -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* (ดีไซน์ UI CSS) */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; padding: 20px; margin: 0; color: #0f172a; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h1 { margin: 0; color: #1e293b; font-size: 1.5em; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { background: #e2e8f0; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; color: #475569; transition: 0.2s; }
+        .tab-btn.active { background: #3b82f6; color: white; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stats-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #3b82f6; }
+        .stat-card.success { border-left-color: #10b981; }
+        .stat-card.warn { border-left-color: #f59e0b; }
+        .stat-card.danger { border-left-color: #ef4444; }
+        .stat-card h3 { margin: 0; font-size: 0.85em; color: #64748b; text-transform: uppercase; }
+        .stat-card p { margin: 10px 0 0 0; font-size: 1.8em; font-weight: bold; color: #0f172a; }
+        .stat-card.danger p { color: #ef4444; }
+        
+        .table-container { max-height: 400px; overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.95em; }
+        th { background: #f8fafc; color: #475569; font-weight: bold; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 #e2e8f0; }
+        tr:hover { background: #f1f5f9; }
+        
+        .thumb { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; cursor: pointer; transition: transform 0.2s; }
+        .thumb:hover { transform: scale(1.1); }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+        .badge-ok { background: #dcfce7; color: #166534; }
+        .badge-warn { background: #fee2e2; color: #991b1b; }
+
+        .form-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .form-card-alt { background: #f8fafc; border: 1px dashed #cbd5e1; }
+        .input-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+        .input-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #334155; }
+        .input-group input, .input-group select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; }
+        
+        .btn-add { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; height: 40px; }
+        .btn-magic { background: #8b5cf6; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; }
+        .btn-magic:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+        .btn-clear { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
+        .btn-qr { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-fix { background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+        .holiday-banner { background: #dbeafe; color: #1e40af; padding: 15px; border-radius: 12px; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid #bfdbfe; display: none; }
+        .checkbox-group { display: flex; gap: 15px; align-items: center; height: 40px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: normal; margin: 0; }
+
+        #imgModal, #fixModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        #imgModal img { max-width: 90%; max-height: 90%; border-radius: 12px; }
+        .modal-box { background: white; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; }
+        .modal-box h2 { margin-top: 0; color: #0f172a; }
+        .btn-close { background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚡ แดชบอร์ดระบบตรวจเช็คตู้ไฟออนไลน์</h1>
+    <span style="color: #64748b;">🟢 ระบบกำลังเชื่อมต่อแบบ Real-time</span>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('history', this)">📋 ประวัติการตรวจเช็ค</button>
+    <button class="tab-btn" onclick="switchTab('qrmanager', this)">🔒 แอดมิน: จัดการระบบ & วันหยุด</button>
+</div>
+
+<!-- ======================================================= -->
+<!-- TAB 1: History (ประวัติการตรวจเช็ค) -->
+<!-- ======================================================= -->
+<div id="history" class="tab-content active">
+
+    <!-- ป้ายแจ้งเตือนเมื่อวานเป็นวันหยุด -->
+    <div id="holidayBanner" class="holiday-banner">
+        🌟 เมื่อวานเป็นวันหยุด: <span id="holidayName"></span> (ระบบงดการแจ้งเตือนจุดตกหล่น)
+    </div>
+
+    <!-- แผงสถิติตัวเลข 4 กล่อง -->
+    <div class="stats-container">
+        <div class="stat-card">
+            <h3>📍 จุดตรวจทั้งหมดในระบบ</h3>
+            <p id="stat-total-qr">0</p>
+        </div>
+        <div class="stat-card success">
+            <h3>✅ ตรวจไปแล้ว (วันนี้)</h3>
+            <p id="stat-checked-today">0</p>
+        </div>
+        <div class="stat-card warn">
+            <h3>⚠️ พบปัญหา (วันนี้)</h3>
+            <p id="stat-issues-today">0</p>
+        </div>
+        <div class="stat-card danger">
+            <h3>❌ เมื่อวานไม่ได้ตรวจ</h3>
+            <p id="stat-missed-yesterday">0</p>
+        </div>
+    </div>
+
+    <!-- ตารางประวัติการตรวจเช็ค -->
+    <div class="table-container" style="max-height: 600px;">
+        <table>
+            <thead>
+                <tr>
+                    <th>โซนตู้ไฟ</th>
+                    <th>วัน-เวลาบันทึก</th>
+                    <th>ผู้ตรวจสอบ</th>
+                    <th>แรงดัน (V)</th>
+                    <th>กระแส (A)</th>
+                    <th>พัดลม</th>
+                    <th>สภาพตู้</th>
+                    <th>ความสะอาด</th>
+                    <th>รูปหน้างาน</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="9" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- TAB 2: Admin System (หน้าจัดการแอดมินทั้งหมด) -->
+<!-- ======================================================= -->
+<div id="qrmanager" class="tab-content">
+    
+    <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+        
+        <!-- ================= ฝั่งซ้าย: จัดการวันหยุด ================= -->
+        <div style="flex: 1; min-width: 400px;">
+            <h2 style="margin-top: 0;">📅 ปฏิทินวันหยุด (งดตรวจ)</h2>
+            
+            <!-- เพิ่มวันหยุดทีละวัน -->
+            <div class="form-card">
+                <div class="input-group">
+                    <label>เพิ่มวันหยุดพิเศษ (ทีละวัน)</label>
+                    <input type="date" id="newHolidayDate">
+                </div>
+                <div class="input-group">
+                    <label>ชื่อเทศกาล/เหตุผล</label>
+                    <input type="text" id="newHolidayDesc" placeholder="เช่น สงกรานต์, ปีใหม่">
+                </div>
+                <button class="btn-add" onclick="addHoliday()">บันทึก</button>
+            </div>
+
+            <!-- เสกวันหยุดอัตโนมัติ (เสาร์-อาทิตย์) -->
+            <div class="form-card form-card-alt">
+                <div class="input-group" style="flex: 0.5;">
+                    <label>✨ เสกวันหยุดอัตโนมัติ</label>
+                    <select id="autoMonth">
+                        <option value="-1">ทั้งปี (ทุกเดือน)</option>
+                        <option value="0">มกราคม</option>
+                        <option value="1">กุมภาพันธ์</option>
+                        <option value="2">มีนาคม</option>
+                        <option value="3">เมษายน</option>
+                        <option value="4">พฤษภาคม</option>
+                        <option value="5">มิถุนายน</option>
+                        <option value="6">กรกฎาคม</option>
+                        <option value="7">สิงหาคม</option>
+                        <option value="8">กันยายน</option>
+                        <option value="9">ตุลาคม</option>
+                        <option value="10">พฤศจิกายน</option>
+                        <option value="11">ธันวาคม</option>
+                    </select>
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label>เลือกวันที่จะหยุด</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="chkSat"> วันเสาร์</label>
+                        <label><input type="checkbox" id="chkSun" checked> วันอาทิตย์</label>
+                    </div>
+                </div>
+                <button id="btnMagicGen" class="btn-magic" onclick="generateAutoHolidays()">✨ สร้างรวดเดียว!</button>
+            </div>
+
+            <!-- ตารางแสดงวันหยุด -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 5px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h3 style="margin: 0; font-size: 1.1em;">รายการวันหยุดในระบบ</h3>
+                    <select id="filterHolMonth" onchange="renderAdminTab()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; outline:none;">
+                        <option value="-1">ดูทุกเดือน (ทั้งปี)</option>
+                        <option value="0">มกราคม</option>
+                        <option value="1">กุมภาพันธ์</option>
+                        <option value="2">มีนาคม</option>
+                        <option value="3">เมษายน</option>
+                        <option value="4">พฤษภาคม</option>
+                        <option value="5">มิถุนายน</option>
+                        <option value="6">กรกฎาคม</option>
+                        <option value="7">สิงหาคม</option>
+                        <option value="8">กันยายน</option>
+                        <option value="9">ตุลาคม</option>
+                        <option value="10">พฤศจิกายน</option>
+                        <option value="11">ธันวาคม</option>
+                    </select>
+                </div>
+                <button class="btn-clear" onclick="deleteAllHolidays()">🗑️ ล้างทั้งหมด</button>
+            </div>
+            
+            <div class="table-container" style="max-height: 250px;">
+                <table>
+                    <thead>
+                        <tr><th>วันที่หยุด</th><th>ชื่อเทศกาล/เหตุผล</th><th>จัดการ</th></tr>
+                    </thead>
+                    <tbody id="holidayTableBody">
+                        <tr><td colspan="3" style="text-align:center;">กำลังโหลด...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ================= ระบบกวาดล้างข้อมูลเก่า 70 วัน ================= -->
+            <h2 style="margin-top: 30px;">🧹 บำรุงรักษาระบบ (คืนพื้นที่)</h2>
+            <div class="form-card form-card-alt" style="border-color: #ef4444; background: #fef2f2;">
+                <div class="input-group">
+                    <label style="color: #b91c1c;">ลบประวัติการสแกนและรูปภาพ (อายุเกิน 70 วัน)</label>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #7f1d1d;">
+                        ตรวจพบข้อมูลเก่าเกินกำหนด: <strong id="oldDataCount" style="font-size: 1.2em; color: #ef4444;">0</strong> รายการ
+                    </p>
+                </div>
+                <button class="btn-delete" style="padding: 10px 15px; font-size:1em;" onclick="cleanupOldData()">🗑️ กดล้างข้อมูลเก่า</button>
+            </div>
+            <p style="font-size: 0.8em; color: #64748b; margin-top: -10px;">
+                * หมายเหตุ: ระบบมีกลไก <b>Auto-Delete</b> หากมีข้อมูลที่อายุเกิน 100 วัน ระบบจะแอบลบทิ้งให้อัตโนมัติทันทีที่คุณเปิดหน้าเว็บนี้ เพื่อป้องกันพื้นที่เต็ม
+            </p>
+        </div>
+
+        <!-- ================= ฝั่งขวา: จุดตกหล่น และ แก้ไขย้อนหลัง ================= -->
+        <div style="flex: 1; min-width: 400px;">
+            
+            <!-- จุดตกหล่น (จำกัดโชว์แค่ 5 จุด) -->
+            <h2 style="color:#ef4444; margin-top: 0;">🚨 จุดตกหล่น (แสดง 5 จุดที่ทิ้งร้างนานสุด)</h2>
+            <div class="table-container" style="max-height: 400px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>รหัสจุดตรวจที่ขาดหาย</th>
+                            <th>จัดการแก้ปัญหา</th>
+                        </tr>
+                    </thead>
+                    <tbody id="missedTableBody">
+                        <tr><td colspan="2" style="text-align:center;">กำลังประมวลผลจุดตกหล่น...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ระบบแก้ไขข้อมูลย้อนหลังเฉพาะจุด -->
+            <div style="margin-top: 25px; padding: 25px; background: #faf5ff; border: 2px dashed #8b5cf6; border-radius: 12px; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.1);">
+                <h2 style="color: #8b5cf6; margin-top: 0;">🛠️ แก้ไข/เพิ่มข้อมูลย้อนหลัง</h2>
+                <p style="color: #64748b; margin-top: -10px; margin-bottom: 20px; font-size: 0.9em;">* ระบบจะลบประวัติเก่าและเขียนทับด้วยข้อมูลใหม่ทันที</p>
+                
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>1. เลือกวันที่ย้อนหลัง</label>
+                    <input type="date" id="retroDate" style="border-color: #8b5cf6; font-size: 1.05em;">
+                </div>
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label>2. เลือกรหัสจุดตรวจ (ตู้ไฟ)</label>
+                    <select id="retroCheckpoint" style="border-color: #8b5cf6; font-size: 1.05em;">
+                        <option value="">-- รอการโหลดจุดตรวจ --</option>
+                    </select>
+                </div>
+
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div class="input-group" style="margin-bottom: 10px;">
+                        <label>ชื่อผู้ตรวจสอบ</label>
+                        <input type="text" id="retroInspector" value="แอดมิน (แก้ไขย้อนหลัง)" style="background: #f1f5f9; color: #475569;" readonly>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div class="input-group" style="flex: 1;">
+                            <label>แรงดันไฟ (V)</label>
+                            <input type="text" id="retroV" placeholder="เช่น 220/221/220">
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>กระแสไฟ (A)</label>
+                            <input type="text" id="retroA" placeholder="เช่น 10/11/10">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group" style="margin-bottom: 10px;">
+                        <label>พัดลมระบายอากาศ</label>
+                        <select id="retroFan">
+                            <option value="✅ ปกติ">✅ ปกติ</option>
+                            <option value="❌ ชำรุด/ไม่หมุน">❌ ชำรุด/ไม่หมุน</option>
+                            <option value="⚪ ละเว้นการตรวจ">⚪ ละเว้นการตรวจ</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="input-group" style="flex: 1;">
+                            <label>สภาพตู้โดยรวม</label>
+                            <select id="retroCond">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ ชำรุด/มีรอยไหม้">❌ ชำรุด/มีรอยไหม้</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>ความสะอาด</label>
+                            <select id="retroClean">
+                                <option value="✅ สะอาด">✅ สะอาด</option>
+                                <option value="⚠️ มีฝุ่น/หยากไย่">⚠️ มีฝุ่น/หยากไย่</option>
+                                <option value="➖ ไม่ได้ระบุ">➖ ไม่ได้ระบุ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn-magic" style="width: 100%; padding: 12px;" onclick="submitRetroEdit()">
+                        💾 บันทึกทับข้อมูล (วันที่เลือก)
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <hr style="border: 1px solid #e2e8f0; margin: 30px 0;">
+
+    <!-- ======================================================= -->
+    <!-- ระบบจัดการ QR Code ใหม่ที่มีตัวกรองอาคาร -->
+    <!-- ======================================================= -->
+    <h2>🖨️ เพิ่ม/ลด จุดตรวจในระบบ (QR Code)</h2>
+    <div class="form-card">
+        <div class="input-group" style="flex: 1;">
+            <label>รหัสจุดตรวจ (เช่น MDB-01)</label>
+            <input type="text" id="newCheckpoint" placeholder="ระบุรหัสตู้ไฟ">
+        </div>
+        <div class="input-group" style="flex: 1;">
+            <label>อาคาร</label>
+            <select id="newBuilding">
+                <option value="อาคาร 1">อาคาร 1</option>
+                <option value="อาคาร 2">อาคาร 2</option>
+                <option value="อาคาร 3">อาคาร 3</option>
+            </select>
+        </div>
+        <div class="input-group" style="flex: 2;">
+            <label>ชั้น / รายละเอียดเพิ่มเติม (ระบุเอง)</label>
+            <input type="text" id="newFloor" placeholder="เช่น ชั้น 1 โซน A หรือ ห้องเครื่อง">
+        </div>
+        <button class="btn-add" onclick="addQRCode()">➕ เพิ่มจุดตรวจ</button>
+    </div>
+
+    <!-- แถบเครื่องมือกรองข้อมูล QR Code (อาคาร) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <strong style="color: #475569;">🔍 คัดกรองตามอาคาร:</strong>
+            <select id="filterQrBuilding" onchange="renderAdminTab()" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1; outline:none; font-family: inherit; font-size: 1em; cursor: pointer;">
+                <option value="all">-- แสดงทุกอาคาร --</option>
+                <option value="อาคาร 1">เฉพาะ อาคาร 1</option>
+                <option value="อาคาร 2">เฉพาะ อาคาร 2</option>
+                <option value="อาคาร 3">เฉพาะ อาคาร 3</option>
+            </select>
+        </div>
+        <span style="color: #64748b; font-size: 1em;">จำนวนจุดตรวจที่แสดง: <strong id="qrCountLabel" style="color: #2563eb; font-size: 1.2em;">0</strong> จุด</span>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>รหัสจุดตรวจ (Checkpoint)</th>
+                    <th>สถานที่ตั้ง (Location)</th>
+                    <th>พิมพ์ QR Code</th>
+                    <th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="qrTableBody">
+                <tr><td colspan="4" style="text-align:center;">กำลังโหลดข้อมูลจุดตรวจ...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Image Modal (คลิกดูรูปขยายใหญ่) -->
+<div id="imgModal" onclick="this.style.display='none'">
+    <img id="fullImg" src="" alt="รูปหน้างาน">
+</div>
+
+<!-- Fix Missed Scan Modal (ป๊อปอัพเคลียร์จุดตกหล่น) -->
+<div id="fixModal">
+    <div class="modal-box">
+        <h2>🛠️ จัดการจุดตกหล่น: <span id="fixPointName" style="color:#2563eb;"></span></h2>
+        
+        <div class="input-group" style="margin-bottom:15px;">
+            <label>เลือกวิธีจัดการ:</label>
+            <select id="fixType" onchange="toggleFixForm()">
+                <option value="exempt">1. ละเว้นการตรวจ (ใส่เหตุผล)</option>
+                <option value="retro">2. เพิ่มข้อมูลย้อนหลัง (คีย์ตัวเลข)</option>
+            </select>
+        </div>
+        <div id="formExempt">
+            <div class="input-group" style="margin-bottom:15px;">
+                <label>เหตุผลที่ละเว้น</label>
+                <input type="text" id="exemptReason" placeholder="พิมพ์เหตุผลที่นี่...">
+            </div>
+        </div>
+        <div id="formRetro" style="display:none;">
+            <div class="input-group" style="margin-bottom:10px;">
+                <label>แรงดันไฟ L1/L2/L3 (V)</label>
+                <input type="text" id="retroShortcutV" placeholder="เช่น 220 / 221 / 220">
+            </div>
+            <div class="input-group" style="margin-bottom:15px;">
+                <label>กระแสไฟ L1/L2/L3 (A)</label>
+                <input type="text" id="retroShortcutA" placeholder="เช่น 10 / 11 / 10">
+            </div>
+        </div>
+        <button class="btn-add" style="width:100%;" onclick="submitFix()">💾 บันทึกการแก้ไข</button>
+        <button class="btn-close" onclick="document.getElementById('fixModal').style.display='none'">ยกเลิก</button>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- JAVASCRIPT ส่วนควบคุมลอจิกทั้งหมด -->
+<!-- ======================================================= -->
+<script>
+    // ----------------------------------------------------------------------
+    // 📌 ตัวแปรหลักของระบบ (Global Variables)
+    // ----------------------------------------------------------------------
+    let dbClient;           // ตัวเชื่อมต่อกับฐานข้อมูล Supabase
+    let isAdmin = false;    // ตัวแปรเก็บสถานะการล็อกอินแอดมิน
+    let allQRs = [];        // เก็บรายการจุดตรวจทั้งหมดในระบบ
+    let scansData = [];     // เก็บประวัติการสแกนทั้งหมด
+    let holidaysData = [];  // เก็บรายการวันหยุด
+    let currentFixPoint = ""; // เอาไว้พักรหัสตู้ชั่วคราว ตอนกดปุ่มจัดการจุดตกหล่น
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันสลับหน้าต่าง (Tabs) และ ระบบตรวจสอบรหัสผ่านผ่านหลังบ้าน (Secure)
+    // ----------------------------------------------------------------------
+    async function switchTab(tabId, btnElement) {
+        
+        // ถ้าคลิกเข้าหน้าแอดมิน และยังไม่เคยล็อกอิน
+        if (tabId === 'qrmanager' && !isAdmin) {
+            
+            const pwd = prompt("🔒 กรุณาใส่รหัสผ่านแอดมิน:");
+            if (!pwd) return; // ถ้ากดยกเลิก หรือไม่กรอกให้เด้งออก
+            
+            try {
+                // 🛑 ส่งรหัสไปตรวจสอบที่ระบบหลังบ้าน (Server) เพื่อความปลอดภัยสูงสุด (ไม่มีรหัสฝังในหน้าเว็บอีกต่อไป)
+                const res = await fetch('/api/verify-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                
+                const result = await res.json();
+                
+                if (!result.success) {
+                    alert("❌ รหัสผ่านไม่ถูกต้อง"); 
+                    return; // เด้งออก ไม่ให้เข้า
+                }
+            } catch (error) {
+                alert("❌ เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน");
+                console.error(error);
+                return;
+            }
+            
+            isAdmin = true; // รหัสถูกต้อง อนุญาตให้ล็อกอินผ่าน
+        }
+        
+        // ล้างสถานะ active ของแท็บเดิมทิ้ง แล้วไฮไลท์แท็บที่เพิ่งกด
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        btnElement.classList.add('active');
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันเริ่มต้นระบบ: (ถูกเรียกทำงานครั้งแรกที่เปิดเว็บ)
+    // ----------------------------------------------------------------------
+    async function init() {
+        // ขอค่าคอนฟิก url, key ของ Supabase จาก Node Server
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        dbClient = supabase.createClient(config.url, config.key);
+        
+        // เริ่มโหลดข้อมูลทั้งหมด
+        await loadCoreData();
+        
+        // ปล่อยหุ่นยนต์เคลียร์ข้อมูลที่เก่าเกิน 100 วัน (รันทำงานอยู่หลังบ้านแบบเงียบๆ)
+        autoWipe100Days();
+
+        // สมัครรับข้อมูล Realtime เวลามีคนสแกนเข้ามาใหม่ ตารางจะรีเฟรชเอง
+        dbClient.channel('custom-all-channel')
+            .on('postgres_changes', { event: '*', schema: 'public' }, () => loadCoreData())
+            .subscribe();
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 หุ่นยนต์ลบข้อมูลเก่า 100 วัน (Auto-Delete) ป้องกันพื้นที่เต็ม
+    // ----------------------------------------------------------------------
+    async function autoWipe100Days() {
+        try {
+            // หาวันที่ของเมื่อ 100 วันที่แล้ว
+            const cutoffDate100 = new Date();
+            cutoffDate100.setDate(cutoffDate100.getDate() - 100);
+            
+            // ค้นหาข้อมูลที่เก่ากว่า 100 วัน
+            const { data: old100Records } = await dbClient
+                .from('scans')
+                .select('id, image_url')
+                .lt('created_at', cutoffDate100.toISOString());
+                
+            if (old100Records && old100Records.length > 0) {
+                console.log(`🤖 Auto-Delete: พบข้อมูลเกิน 100 วัน จำนวน ${old100Records.length} รายการ กำลังกวาดล้าง...`);
+                
+                // 1. ดึงชื่อไฟล์รูปภาพมาลบออกจาก Storage
+                const fileNames = old100Records.map(s => {
+                    if (!s.image_url) return null;
+                    const parts = s.image_url.split('/');
+                    return parts[parts.length - 1];
+                }).filter(name => name && !name.includes('placehold'));
+
+                if (fileNames.length > 0) {
+                    await dbClient.storage.from('checkpoint-images').remove(fileNames);
+                }
+                
+                // 2. ลบข้อมูลทิ้งจากตาราง Database
+                const idsToDelete = old100Records.map(s => s.id);
+                await dbClient.from('scans').delete().in('id', idsToDelete);
+                console.log("🤖 Auto-Delete: กวาดล้างเสร็จสิ้น!");
+            }
+        } catch(e) {
+            console.error("Auto-Delete Error:", e);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 โหลดข้อมูลหลักทั้งหมด (จุดตรวจ, วันหยุด, ประวัติการสแกน)
+    // ----------------------------------------------------------------------
+    async function loadCoreData() {
+        // ใช้ Promise.all ให้ดึงข้อมูล 3 ตารางพร้อมกันแบบติดจรวด
+        const [qrRes, scanRes, holRes] = await Promise.all([
+            dbClient.from('QRCode').select('*').order('id', { ascending: true }),
+            dbClient.from('scans').select('*').order('created_at', { ascending: false }),
+            dbClient.from('holidays').select('*').order('holiday_date', { ascending: false })
+        ]);
+
+        allQRs = qrRes.data || [];
+        scansData = scanRes.data || [];
+        holidaysData = holRes.data || [];
+
+        // ส่งข้อมูลที่ได้ไปวาดตารางลงหน้าเว็บ
+        renderHistoryAndStats();
+        renderAdminTab();
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 วาดหน้าจอ "ประวัติการตรวจเช็ค" และ "กล่องสถิติ"
+    // ----------------------------------------------------------------------
+    function renderHistoryAndStats() {
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('th-TH'); 
+        
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toLocaleDateString('th-TH'); 
+        
+        // แปลงเวลาเมื่อวานเป็นรูปแบบ YYYY-MM-DD เพื่อเอาไปเทียบกับวันหยุด
+        const yesterdayYYYYMMDD = new Date(yesterdayDate.getTime() - (yesterdayDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+        // เช็คว่าเมื่อวานเป็นวันหยุดไหม?
+        const holidayRecord = holidaysData.find(h => h.holiday_date === yesterdayYYYYMMDD);
+        const isYesterdayHoliday = !!holidayRecord;
+
+        // ถ้าเมื่อวานเป็นวันหยุด ให้โชว์ป้ายเตือน
+        if (isYesterdayHoliday) {
+            document.getElementById('holidayBanner').style.display = 'block';
+            document.getElementById('holidayName').innerText = holidayRecord.description;
+        } else {
+            document.getElementById('holidayBanner').style.display = 'none';
+        }
+
+        let checkedToday = new Set();
+        let checkedYesterday = new Set();
+        let issuesTodayCount = 0;
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        if (scansData.length === 0) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">ยังไม่มีประวัติการตรวจเช็ค</td></tr>';
+
+        // วนลูปวาดตารางประวัติแต่ละแถว
+        scansData.forEach(item => {
+            const itemDateObj = new Date(item.created_at);
+            const itemDateStr = itemDateObj.toLocaleDateString('th-TH');
+            const timeStr = itemDateObj.toLocaleString('th-TH');
+            
+            // เช็คว่าตู้นี้มีอาการป่วย (ปัญหา) หรือไม่?
+            const hasIssue = !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
+                             !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
+                             !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-');
+
+            // เก็บสถิติรายวัน
+            if (itemDateStr === todayStr) { checkedToday.add(item.checkpoint_name); if (hasIssue) issuesTodayCount++; }
+            if (itemDateStr === yesterdayStr) { checkedYesterday.add(item.checkpoint_name); }
+
+            // ทำป้ายสี Badge ปกติ=สีเขียว / ชำรุด=สีแดง
+            const getBadge = (text) => text.includes('ปกติ') || text.includes('สะอาด') ? `<span class="badge badge-ok">${text}</span>` : `<span class="badge badge-warn">${text}</span>`;
+            
+            // ถ้าแอดมินคีย์ให้ว่า "ละเว้นการตรวจ"
+            const isExempt = (item.inspector_name || '').includes('ละเว้น');
+            const condDisplay = isExempt ? `<span class="badge badge-warn">${item.general_condition}</span>` : getBadge(item.general_condition || '-');
+
+            tbody.innerHTML += `
+                <tr style="${isExempt ? 'background-color: #fffbeb;' : ''}">
+                    <td><strong>${item.checkpoint_name}</strong></td>
+                    <td>${timeStr}</td>
+                    <td><strong>${item.inspector_name || '-'}</strong></td>
+                    <td>${item.voltage || '-'}</td>
+                    <td>${item.current_amp || '-'}</td>
+                    <td>${getBadge(item.fan_status || '-')}</td>
+                    <td>${condDisplay}</td>
+                    <td>${getBadge(item.cleanliness || '-')}</td>
+                    <td><img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')"></td>
+                </tr>
+            `;
+        });
+
+        // อัปเดตตัวเลข 4 กล่องสถิติ
+        document.getElementById('stat-total-qr').innerText = allQRs.length;
+        document.getElementById('stat-checked-today').innerText = checkedToday.size;
+        document.getElementById('stat-issues-today').innerText = issuesTodayCount;
+        
+        // สถิติ: จุดที่หลุดของเมื่อวาน
+        if (isYesterdayHoliday) {
+            document.getElementById('stat-missed-yesterday').innerText = '0 (วันหยุด)';
+            document.getElementById('stat-missed-yesterday').style.color = '#10b981';
+        } else {
+            document.getElementById('stat-missed-yesterday').innerText = Math.max(0, allQRs.length - checkedYesterday.size);
+            document.getElementById('stat-missed-yesterday').style.color = '';
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 วาดหน้าจอ "แอดมิน" (ตารางวันหยุด, ตารางจุดตกหล่น, ตาราง QR Code)
+    // ----------------------------------------------------------------------
+    function renderAdminTab() {
+        // [1] ตารางวันหยุด (บวกระบบ Filter เดือน)
+        const filterMonth = parseInt(document.getElementById('filterHolMonth').value);
+        let filteredHolidays = holidaysData;
+        if (filterMonth !== -1) {
+            filteredHolidays = holidaysData.filter(h => new Date(h.holiday_date).getMonth() === filterMonth);
+        }
+
+        const holBody = document.getElementById('holidayTableBody');
+        holBody.innerHTML = '';
+        if(filteredHolidays.length === 0) {
+            holBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #64748b;">ไม่มีข้อมูลวันหยุดในเดือนที่เลือกครับ</td></tr>';
+        }
+        filteredHolidays.forEach(h => {
+            const dateStr = new Date(h.holiday_date).toLocaleDateString('th-TH');
+            holBody.innerHTML += `<tr><td>${dateStr}</td><td>${h.description}</td><td><button class="btn-delete" onclick="deleteHoliday(${h.id})">🗑️ ลบ</button></td></tr>`;
+        });
+
+        // [2] อัปเดตตัวเลข ลบข้อมูลเก่าเกิน 70 วัน
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 70);
+        let oldRecords = scansData.filter(s => new Date(s.created_at) < cutoffDate);
+        document.getElementById('oldDataCount').innerText = oldRecords.length;
+
+
+        // [3] ตาราง QR Code (บวกระบบ Filter แยกตามตึก)
+        const qrBody = document.getElementById('qrTableBody');
+        qrBody.innerHTML = '';
+        
+        // เติมรายชื่อตู้ไฟใส่ช่อง Dropdown ในส่วน "แก้ไขข้อมูลย้อนหลัง"
+        const retroCp = document.getElementById('retroCheckpoint');
+        retroCp.innerHTML = '<option value="">-- เลือกรหัสจุดตรวจ --</option>';
+        allQRs.forEach(item => {
+            retroCp.innerHTML += `<option value="${item.checkpoint}">${item.checkpoint}</option>`;
+        });
+
+        // ฟิลเตอร์อาคารในตาราง QR
+        const filterBldg = document.getElementById('filterQrBuilding').value;
+        let filteredQRs = allQRs;
+        if (filterBldg !== 'all') {
+            filteredQRs = allQRs.filter(item => (item.Location || '').includes(filterBldg));
+        }
+
+        document.getElementById('qrCountLabel').innerText = filteredQRs.length;
+
+        if (filteredQRs.length === 0) {
+            qrBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #64748b;">ไม่พบจุดตรวจในอาคารที่เลือกครับ</td></tr>';
+        }
+
+        // วาดตาราง QR Code
+        filteredQRs.forEach(item => {
+            const scanUrl = window.location.origin + `/scan.html?point=${encodeURIComponent(item.checkpoint)}`;
+            const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+            qrBody.innerHTML += `
+                <tr>
+                    <td><strong>${item.checkpoint}</strong></td>
+                    <td>${item.Location || '-'}</td>
+                    <td><a href="${qrImageUrl}" target="_blank" class="btn-qr">🖼️ ดูรูป / โหลด QR Code</a></td>
+                    <td><button class="btn-delete" onclick="deleteQRCode(${item.id}, '${item.checkpoint}')">🗑️ ลบ</button></td>
+                </tr>
+            `;
+        });
+
+
+        // [4] ตารางจุดตกหล่น ของเมื่อวาน (AI เลือก 5 จุดที่อาการหนักสุด)
+        const missedBody = document.getElementById('missedTableBody');
+        missedBody.innerHTML = '';
+        
+        let yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayYYYYMMDD = new Date(yesterdayDate.getTime() - (yesterdayDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const isYestHoliday = holidaysData.some(h => h.holiday_date === yesterdayYYYYMMDD);
+
+        // ถ้าเมื่อวานหยุด ก็ไม่ต้องโชว์จุดตกหล่น
+        if (isYestHoliday) {
+            missedBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#10b981; font-weight:bold; padding:20px;">🏖️ เมื่อวานเป็นวันหยุด ไม่มีการเช็คยอดตกหล่นครับ</td></tr>';
+        } else {
+            const yesterdayStr = yesterdayDate.toLocaleDateString('th-TH');
+            
+            let checkedYesterday = new Set();
+            let lastScanMap = {}; // จำว่าแต่ละตู้ ตรวจครั้งล่าสุดวันไหน
+            
+            scansData.forEach(item => { 
+                const dStr = new Date(item.created_at).toLocaleDateString('th-TH');
+                if (dStr === yesterdayStr) {
+                    checkedYesterday.add(item.checkpoint_name); 
+                }
+                if (!lastScanMap[item.checkpoint_name]) {
+                    lastScanMap[item.checkpoint_name] = new Date(item.created_at).getTime();
+                }
+            });
+            
+            let missedQRs = [];
+            // ค้นหาตูัที่ไม่ได้ตรวจเมื่อวาน
+            allQRs.forEach(qr => {
+                if (!checkedYesterday.has(qr.checkpoint)) {
+                    missedQRs.push({
+                        checkpoint: qr.checkpoint,
+                        Location: qr.Location,
+                        lastScan: lastScanMap[qr.checkpoint] || 0 // 0 คือไม่เคยโดนตรวจเลยตั้งแต่สร้างระบบ
+                    });
+                }
+            });
+            
+            if (missedQRs.length > 0) {
+                // เรียงลำดับเอาตู้ที่ไม่โดนตรวจนานที่สุดขึ้นมาก่อน
+                missedQRs.sort((a, b) => a.lastScan - b.lastScan);
+                
+                // หั่นโชว์แค่ 5 อันดับแรก
+                const top5 = missedQRs.slice(0, 5);
+                
+                top5.forEach(qr => {
+                    const lastScanText = qr.lastScan === 0 
+                        ? '<span style="color:#ef4444; font-size:0.85em;">(ไม่เคยมีประวัติการตรวจ)</span>' 
+                        : `<span style="color:#64748b; font-size:0.85em;">(ล่าสุด: ${new Date(qr.lastScan).toLocaleDateString('th-TH')})</span>`;
+
+                    missedBody.innerHTML += `
+                        <tr>
+                            <td><strong>${qr.checkpoint}</strong><br>${lastScanText}</td>
+                            <td style="vertical-align: middle;"><button class="btn-fix" onclick="openFixModal('${qr.checkpoint}')">🛠️ จัดการ</button></td>
+                        </tr>`;
+                });
+
+                // แจ้งเตือนว่ายังมีที่ซ่อนอยู่อีก
+                if (missedQRs.length > 5) {
+                    missedBody.innerHTML += `
+                        <tr><td colspan="2" style="text-align:center; background:#fef3c7; color:#b45309; font-size:0.9em; padding:15px; border-radius: 8px;">
+                            ⚠️ ยังมีจุดตกหล่นอีก <b>${missedQRs.length - 5}</b> จุด<br>
+                            (ระบบแสดงผลเฉพาะ 5 จุดที่ <u>ขาดการตรวจนานที่สุด</u>)
+                        </td></tr>`;
+                }
+            } else {
+                missedBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#10b981; font-weight:bold; padding:20px;">🎉 เมื่อวานไม่มีจุดตกหล่นเลยครับ! เยี่ยมมาก</td></tr>';
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ระบบ แอดมิน: แก้ไขข้อมูลย้อนหลัง (เปลี่ยนอดีต)
+    // ----------------------------------------------------------------------
+    async function submitRetroEdit() {
+        const dateVal = document.getElementById('retroDate').value;
+        const cp = document.getElementById('retroCheckpoint').value;
+        
+        if (!dateVal || !cp) return alert("กรุณาเลือกวันที่ และ เลือกรหัสจุดตรวจให้ครบถ้วนครับ!");
+        
+        const inspector = document.getElementById('retroInspector').value;
+        const v = document.getElementById('retroV').value;
+        const a = document.getElementById('retroA').value;
+        const fan = document.getElementById('retroFan').value;
+        const cond = document.getElementById('retroCond').value;
+        const clean = document.getElementById('retroClean').value;
+        
+        if (!v || !a) return alert("กรุณากรอกกระแสไฟและแรงดันไฟครับ (หากไม่มีให้ใส่ - แทน)");
+
+        const confirmMsg = `🚨 ยืนยันการบันทึกข้อมูลของตู้ ${cp}\nประจำวันที่ ${dateVal} ใช่หรือไม่?\n\n(หากวันนั้นมีประวัติอยู่แล้ว ระบบจะทำการลบทับของเดิมทั้งหมด)`;
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            // 1. นั่งไทม์แมชชีนกลับไปลบรูป+ประวัติของตู้นั้นในวันนั้นทิ้งก่อน
+            const targetDateStart = new Date(dateVal);
+            targetDateStart.setHours(0,0,0,0);
+            const targetDateEnd = new Date(dateVal);
+            targetDateEnd.setHours(23,59,59,999);
+            
+            const { data: oldData } = await dbClient
+                .from('scans')
+                .select('id, image_url')
+                .eq('checkpoint_name', cp)
+                .gte('created_at', targetDateStart.toISOString())
+                .lte('created_at', targetDateEnd.toISOString());
+                
+            if (oldData && oldData.length > 0) {
+                const oldImages = oldData.map(s => {
+                    if(!s.image_url) return null;
+                    const p = s.image_url.split('/');
+                    return p[p.length-1];
+                }).filter(n => n && !n.includes('placehold'));
+                
+                if (oldImages.length > 0) {
+                    await dbClient.storage.from('checkpoint-images').remove(oldImages);
+                }
+                const oldIds = oldData.map(s => s.id);
+                await dbClient.from('scans').delete().in('id', oldIds);
+            }
+
+            // 2. สอดไส้ข้อมูลใหม่ลงไปในวันนั้นๆ 
+            const insertDate = new Date(dateVal);
+            insertDate.setHours(12, 0, 0); 
+            
+            const payload = {
+                checkpoint_name: cp,
+                created_at: insertDate.toISOString(),
+                inspector_name: inspector,
+                voltage: v,
+                current_amp: a,
+                fan_status: fan,
+                general_condition: cond,
+                cleanliness: clean,
+                image_url: "https://placehold.co/400x300/8b5cf6/ffffff?text=Edited+by+Admin" // ใส่รูป placeholder สีม่วงแทนรูปถ่าย
+            };
+
+            const { error } = await dbClient.from('scans').insert([payload]);
+            if (error) throw error;
+            
+            alert("✅ บันทึกข้อมูลย้อนหลังสำเร็จ! (สามารถตรวจสอบได้ที่หน้าประวัติ)");
+            
+            // ล้างค่าแค่แรงดันไฟ เผื่อแอดมินแก้ตู้ถัดไปของวันนั้นต่อ
+            document.getElementById('retroV').value = '';
+            document.getElementById('retroA').value = '';
+            
+        } catch (error) {
+            alert("เกิดข้อผิดพลาด: " + error.message);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ระบบเสกวันหยุดอัตโนมัติ (เสาร์-อาทิตย์)
+    // ----------------------------------------------------------------------
+    async function generateAutoHolidays() {
+        const monthVal = parseInt(document.getElementById('autoMonth').value);
+        const doSat = document.getElementById('chkSat').checked;
+        const doSun = document.getElementById('chkSun').checked;
+        if (!doSat && !doSun) return alert("กรุณาเลือกวันเสาร์ หรือ วันอาทิตย์");
+        const btn = document.getElementById('btnMagicGen');
+        const year = new Date().getFullYear();
+        let datesToInsert = [];
+        
+        // ถ้าเลือกทั้งปี ให้วนลูป 12 เดือน, ถ้าเลือกเดือนเดียวก็แค่นั้น
+        const startMonth = monthVal === -1 ? 0 : monthVal;
+        const endMonth = monthVal === -1 ? 11 : monthVal;
+        let d = new Date(year, startMonth, 1);
+        
+        while(d.getFullYear() === year && d.getMonth() <= endMonth) {
+            const dayOfWeek = d.getDay();
+            if ((doSat && dayOfWeek === 6) || (doSun && dayOfWeek === 0)) {
+                // แปลงเวลาให้ไม่เพี้ยนตาม Timezone
+                const localDateString = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                
+                // เช็คว่ามีหยุดนี้ในระบบหรือยัง ป้องกันข้อมูลเบิ้ลซ้ำ
+                const alreadyExists = holidaysData.some(h => h.holiday_date === localDateString);
+                if (!alreadyExists) datesToInsert.push({ holiday_date: localDateString, description: dayOfWeek === 6 ? 'วันหยุดเสาร์' : 'วันหยุดอาทิตย์' });
+            }
+            d.setDate(d.getDate() + 1);
+        }
+        
+        if (datesToInsert.length === 0) return alert("❌ วันหยุดของช่วงเวลานี้ ถูกสร้างไปแล้วทั้งหมดครับ ไม่มีวันให้สร้างเพิ่มแล้ว");
+        
+        if(confirm(`ต้องการสร้างวันหยุดทั้งหมด ${datesToInsert.length} วัน ใช่หรือไม่?`)) {
+            btn.disabled = true; btn.innerText = "⏳ กำลังสร้าง...";
+            // บันทึกรวดเดียวเป็น Array
+            const { error } = await dbClient.from('holidays').insert(datesToInsert);
+            btn.disabled = false; btn.innerText = "✨ สร้างรวดเดียว!";
+            if (error) alert("Error: " + error.message);
+            else alert(`✨ สร้างสำเร็จ ${datesToInsert.length} วัน!`);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ระบบล้างข้อมูลเก่าด้วยตัวเอง (70 วัน)
+    // ----------------------------------------------------------------------
+    async function cleanupOldData() {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 70);
+        
+        const oldRecords = scansData.filter(s => new Date(s.created_at) < cutoffDate);
+        if (oldRecords.length === 0) return alert("✨ ยังไม่มีข้อมูลที่อายุเกิน 70 วันครับ พื้นที่ยังเหลือเฟือ!");
+        
+        if (!confirm(`🚨 คำเตือน: ยืนยันการลบข้อมูลและรูปภาพหน้างานที่เก่ากว่า 70 วัน จำนวน [${oldRecords.length} รายการ] ทิ้งถาวรหรือไม่?\n(เมื่อลบแล้วจะไม่สามารถกู้คืนได้)`)) return;
+
+        // ลบรูป
+        const fileNames = oldRecords.map(s => {
+            if (!s.image_url) return null;
+            const parts = s.image_url.split('/');
+            return parts[parts.length - 1];
+        }).filter(name => name && !name.includes('placehold'));
+
+        if (fileNames.length > 0) {
+            const { error: storageErr } = await dbClient.storage.from('checkpoint-images').remove(fileNames);
+            if (storageErr) console.error("เกิดข้อผิดพลาดตอนลบรูป:", storageErr);
+        }
+
+        // ลบฐานข้อมูล
+        const idsToDelete = oldRecords.map(s => s.id);
+        const { error: dbErr } = await dbClient.from('scans').delete().in('id', idsToDelete);
+        
+        if (dbErr) alert("เกิดข้อผิดพลาดในการลบข้อมูล: " + dbErr.message);
+        else alert(`🧹 ล้างข้อมูลและรูปเก่าจำนวน ${oldRecords.length} รายการ เรียบร้อยแล้ว! ได้พื้นที่ว่างคืนมาเพียบครับ 🎉`);
+    }
+
+    // ล้างวันหยุดทั้งหมด (กรณีขึ้นปีใหม่)
+    async function deleteAllHolidays() {
+        if(!confirm('🚨 ยืนยันการ "ล้างวันหยุดทั้งหมด" ในระบบใช่หรือไม่?\n(เมื่อล้างแล้ว ต้องสร้างใหม่)')) return;
+        const { error } = await dbClient.from('holidays').delete().neq('id', 0);
+        if (error) alert("Error: " + error.message);
+        else alert("🗑️ ล้างวันหยุดทั้งหมดเรียบร้อยแล้ว!");
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ระบบจัดการจุดตรวจ QR Code และ วันหยุดทั่วไป
+    // ----------------------------------------------------------------------
+    async function addHoliday() {
+        const d = document.getElementById('newHolidayDate').value;
+        const desc = document.getElementById('newHolidayDesc').value || 'วันหยุดพิเศษ';
+        if(!d) return alert('กรุณาเลือกวันที่');
+        
+        const alreadyExists = holidaysData.some(h => h.holiday_date === d);
+        if (alreadyExists) return alert("❌ วันที่นี้ถูกตั้งเป็นวันหยุดไปแล้วครับ! ไม่สามารถเพิ่มซ้ำได้");
+        
+        const { error } = await dbClient.from('holidays').insert([{ holiday_date: d, description: desc }]);
+        if (error) alert("Error: " + error.message);
+        else { document.getElementById('newHolidayDate').value=''; document.getElementById('newHolidayDesc').value=''; }
+    }
+    
+    async function deleteHoliday(id) {
+        if(!confirm('ลบวันหยุดนี้?')) return;
+        const { error } = await dbClient.from('holidays').delete().eq('id', id);
+        if (error) alert("Error: " + error.message);
+    }
+    
+    // อัปเดตฟังก์ชันเพิ่มจุดตรวจ ให้รวมชื่อตึกและชั้นเข้าด้วยกัน
+    async function addQRCode() {
+        const cp = document.getElementById('newCheckpoint').value;
+        const bldg = document.getElementById('newBuilding').value;
+        const flr = document.getElementById('newFloor').value;
+        
+        if(!cp) return alert('กรุณาระบุรหัสจุดตรวจให้เรียบร้อยครับ');
+        
+        // เอา อาคาร + ชั้น มารวมกันให้อ่านง่าย เช่น "อาคาร 1, ชั้น 1 ห้องเครื่อง"
+        let fullLocation = bldg;
+        if (flr && flr.trim() !== '') {
+            fullLocation = `${bldg}, ${flr.trim()}`;
+        }
+        
+        const { error } = await dbClient.from('QRCode').insert([{ checkpoint: cp, Location: fullLocation }]);
+        
+        if(error) alert("Error: " + error.message);
+        else {
+            alert(`✅ เพิ่มจุดตรวจ ${cp} (${fullLocation}) สำเร็จ!`);
+            document.getElementById('newCheckpoint').value = '';
+            document.getElementById('newFloor').value = '';
+        }
+    }
+    
+    async function deleteQRCode(id, name) {
+        if(!confirm(`ลบจุดตรวจ ${name}?`)) return;
+        const { error } = await dbClient.from('QRCode').delete().eq('id', id);
+        if(error) alert("Error: " + error.message);
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ระบบแก้ไขปัญหา "จุดตกหล่น" (เปิดป๊อปอัพ และเซฟข้อมูล)
+    // ----------------------------------------------------------------------
+    function openFixModal(point) { currentFixPoint = point; document.getElementById('fixPointName').innerText = point; document.getElementById('fixModal').style.display = 'flex'; }
+    function toggleFixForm() {
+        const type = document.getElementById('fixType').value;
+        document.getElementById('formExempt').style.display = type === 'exempt' ? 'block' : 'none';
+        document.getElementById('formRetro').style.display = type === 'retro' ? 'block' : 'none';
+    }
+    
+    // เมื่อกดยืนยันการเคลียร์จุดตกหล่น
+    async function submitFix() {
+        const type = document.getElementById('fixType').value;
+        
+        // ถอยเวลาไปเป็นเมื่อวานตอนเที่ยงวัน เพื่อให้ข้อมูลจัดอยู่ในประวัติของเมื่อวาน
+        let yd = new Date(); yd.setDate(yd.getDate() - 1); yd.setHours(12, 0, 0); 
+        let payload = {};
+        
+        if (type === 'exempt') {
+            // แบบที่ 1: ละเว้นการตรวจ
+            const reason = document.getElementById('exemptReason').value;
+            if(!reason) return alert('กรุณาใส่เหตุผล');
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (ละเว้น)", general_condition: reason, voltage: "-", current_amp: "-", fan_status: "-", cleanliness: "-", image_url: "https://placehold.co/400x300/f59e0b/ffffff?text=Exempted+by+Admin" };
+        } else {
+            // แบบที่ 2: คีย์ข้อมูลตัวเลขย้อนหลัง
+            const v = document.getElementById('retroShortcutV').value; const a = document.getElementById('retroShortcutA').value;
+            if(!v || !a) return alert('กรุณากรอกตัวเลขให้ครบ');
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (คีย์ย้อนหลัง)", voltage: v, current_amp: a, fan_status: "✅ ปกติ", general_condition: "✅ ปกติ", cleanliness: "✅ สะอาด", image_url: "https://placehold.co/400x300/3b82f6/ffffff?text=Retroactive+Entry" };
+        }
+        
+        // ส่งข้อมูลขึ้นฐานข้อมูล
+        const { error } = await dbClient.from('scans').insert([payload]);
+        if (error) alert("Error: " + error.message);
+        else { document.getElementById('fixModal').style.display = 'none'; }
+    }
+    
+    // ฟังก์ชันย่อ-ขยายรูปภาพเมื่อคลิก
+    function showImg(url) { document.getElementById('fullImg').src = url; document.getElementById('imgModal').style.display = 'flex'; }
+
+    // เริ่มทำงานระบบ!
+    init();
+</script>
+
+</body>
+</html>

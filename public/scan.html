@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ฟอร์มบันทึกการตรวจเช็ค MDB</title>
+    <!-- นำเข้าไลบรารีของ Supabase สำหรับเชื่อมต่อฐานข้อมูล -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- นำเข้าไลบรารีสำหรับบีบอัดรูปภาพก่อนอัปโหลด เพื่อประหยัดพื้นที่ -->
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 20px; display: flex; justify-content: center; color: #0f172a; margin: 0; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 450px; width: 100%; }
+        h2 { text-align: center; color: #1e293b; margin-bottom: 25px; font-size: 1.5em; }
+        .checkpoint-display { background: #eff6ff; color: #2563eb; padding: 15px; border-radius: 8px; text-align: center; font-size: 1.4em; font-weight: bold; margin-bottom: 25px; border: 1px dashed #bfdbfe; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #475569; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1em; font-family: inherit; }
+        .input-row { display: flex; gap: 10px; }
+        .input-row input { text-align: center; font-weight: bold; color: #2563eb; }
+        .btn-camera { background-color: #3b82f6; color: white; padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; display: block; font-weight: bold; font-size: 1.1em; transition: background 0.2s; margin-bottom: 15px; }
+        .btn-camera:hover { background-color: #2563eb; }
+        .btn-camera input { display: none; }
+        #preview { width: 100%; border-radius: 8px; display: none; margin-bottom: 20px; border: 2px solid #e2e8f0; }
+        .btn-submit { background-color: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 1.2em; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .btn-submit:hover { background-color: #059669; }
+        .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        #status { text-align: center; margin-top: 15px; font-weight: bold; color: #2563eb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⚡ บันทึกการตรวจเช็คตู้ไฟ</h2>
+    <div class="checkpoint-display" id="checkpointDisplay">โหลดข้อมูล...</div>
+
+    <div class="form-group">
+        <label>ชื่อผู้ตรวจสอบ:</label>
+        <input type="text" id="inspector_name" placeholder="ระบุชื่อของคุณ">
+    </div>
+
+    <div class="form-group">
+        <label>แรงดันไฟฟ้า (V) - L1 / L2 / L3:</label>
+        <div class="input-row">
+            <input type="number" id="v1" placeholder="L1">
+            <input type="number" id="v2" placeholder="L2">
+            <input type="number" id="v3" placeholder="L3">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>กระแสไฟฟ้า (A) - L1 / L2 / L3:</label>
+        <div class="input-row">
+            <input type="number" id="a1" placeholder="L1">
+            <input type="number" id="a2" placeholder="L2">
+            <input type="number" id="a3" placeholder="L3">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>พัดลมระบายอากาศ:</label>
+        <select id="fan_status">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ ชำรุด/ไม่หมุน">❌ ชำรุด/ไม่หมุน</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>สภาพตู้โดยรวม:</label>
+        <select id="general_condition">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ ชำรุด/มีรอยไหม้">❌ ชำรุด/มีรอยไหม้</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>ความสะอาด:</label>
+        <select id="cleanliness">
+            <option value="✅ สะอาด">✅ สะอาด</option>
+            <option value="⚠️ มีฝุ่น/หยากไย่">⚠️ มีฝุ่น/หยากไย่</option>
+        </select>
+    </div>
+
+    <label class="btn-camera">
+        📸 ถ่ายรูปตู้ไฟหน้างาน
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+    </label>
+    <img id="preview" alt="ภาพตัวอย่าง">
+
+    <button id="btnSubmit" class="btn-submit" onclick="submitForm()">💾 บันทึกผลการตรวจสอบ</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    // ----------------------------------------------------------------------
+    // 📌 ตัวแปรหลักของระบบ (Global Variables)
+    // ----------------------------------------------------------------------
+    let dbClient; // ตัวแทนเชื่อมต่อกับฐานข้อมูล Supabase
+    let selectedFile = null; // เก็บไฟล์รูปภาพที่ช่างถ่าย
+
+    // 1. ดึงชื่อตู้ไฟ (Checkpoint) จาก URL (เช่น url ลงท้ายด้วย ?point=MDB-01)
+    const urlParams = new URLSearchParams(window.location.search);
+    const checkpointId = urlParams.get('point') || 'ไม่ระบุโซน';
+    document.getElementById('checkpointDisplay').innerText = `โซน: ${checkpointId}`;
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันเริ่มต้น: เชื่อมต่อฐานข้อมูล
+    // ----------------------------------------------------------------------
+    async function initSupabase() {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        dbClient = supabase.createClient(config.url, config.key);
+        
+        // เมื่อเชื่อมต่อเสร็จ ให้เช็คทันทีว่าตู้นี้โดนตรวจไปแล้วหรือยังในวันนี้?
+        checkAlreadyScannedToday();
+    }
+    initSupabase();
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันเช็คการตรวจซ้ำ: ป้องกันการส่งข้อมูลซ้ำซ้อนในวันเดียวกัน
+    // ----------------------------------------------------------------------
+    async function checkAlreadyScannedToday() {
+        const todayStr = new Date().toLocaleDateString('th-TH');
+        
+        // ค้นหาข้อมูลการตรวจของตู้นี้ 1 รายการล่าสุด
+        const { data } = await dbClient
+            .from('scans')
+            .select('created_at')
+            .eq('checkpoint_name', checkpointId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+        // ถ้าเจอข้อมูลเก่า ให้ดูว่าวันที่ตรงกับ "วันนี้" หรือไม่
+        if (data && data.length > 0) {
+            const lastScanDate = new Date(data[0].created_at).toLocaleDateString('th-TH');
+            if (lastScanDate === todayStr) {
+                // ถ้าตรวจไปแล้ว โชว์ป้ายเตือนสีเหลือง แต่ยังยอมให้กรอกฟอร์มเพื่อบันทึกทับได้ (เผื่อกรอกผิด)
+                const banner = document.createElement('div');
+                banner.innerHTML = `
+                    <div style="background: #fef3c7; color: #92400e; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #f59e0b;">
+                        <strong style="font-size:1.1em;">⚠️ ตู้นี้ถูกตรวจไปแล้ววันนี้!</strong><br>
+                        <span style="font-size:0.9em;">(ระบบอนุญาตให้ส่งใหม่ได้ <u>เฉพาะกรณีที่ต้องการแก้ไขข้อมูลที่ผิดพลาด</u> โดยข้อมูลใหม่จะไป <b>บันทึกทับ</b> ของเดิมครับ)</span>
+                    </div>
+                `;
+                document.querySelector('.container').prepend(banner);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันบีบอัดรูปภาพ: เมื่อกดเลือกรูป/ถ่ายรูป
+    // ----------------------------------------------------------------------
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('status').innerText = "กำลังบีบอัดรูปภาพ ⏳...";
+        
+        try {
+            // บีบอัดให้ขนาดไม่เกิน 0.1 MB (100KB) เพื่อลดภาระพื้นที่เก็บข้อมูล
+            selectedFile = await imageCompression(file, { maxSizeMB: 0.1, maxWidthOrHeight: 1024, useWebWorker: true });
+            
+            // แสดงรูปตัวอย่างบนหน้าจอ
+            document.getElementById('preview').src = URL.createObjectURL(selectedFile);
+            document.getElementById('preview').style.display = 'block';
+            document.getElementById('status').innerText = `อัปโหลดรูปพร้อมส่ง!`;
+        } catch (error) {
+            document.getElementById('status').innerText = "เกิดข้อผิดพลาดในการบีบอัดรูป";
+        }
+    });
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟังก์ชันส่งข้อมูลเข้า Cloud: (กดปุ่มบันทึก)
+    // ----------------------------------------------------------------------
+    async function submitForm() {
+        const inspector = document.getElementById('inspector_name').value;
+        const v1 = document.getElementById('v1').value;
+        const v2 = document.getElementById('v2').value;
+        const v3 = document.getElementById('v3').value;
+        const a1 = document.getElementById('a1').value;
+        const a2 = document.getElementById('a2').value;
+        const a3 = document.getElementById('a3').value;
+
+        // เช็คว่ากรอกข้อมูลครบไหม
+        if (!inspector || !v1 || !a1 || !selectedFile) {
+            alert("กรุณากรอกข้อมูลและถ่ายรูปให้ครบถ้วน!");
+            return;
+        }
+
+        document.getElementById('btnSubmit').disabled = true;
+        document.getElementById('status').innerText = "กำลังค้นหาข้อมูลเก่าเพื่อเขียนทับ ⏳...";
+
+        try {
+            // ==========================================
+            // กระบวนการที่ 1: จัดการลบข้อมูลเก่า (กรณีสแกนทับ)
+            // ==========================================
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0); // รีเซ็ตเวลาเป็นเที่ยงคืนของวันนี้
+            
+            // ดึงข้อมูลเก่าของวันนี้ (ถ้ามี)
+            const { data: oldData } = await dbClient
+                .from('scans')
+                .select('id, image_url')
+                .eq('checkpoint_name', checkpointId)
+                .gte('created_at', todayStart.toISOString());
+
+            if (oldData && oldData.length > 0) {
+                // แยกชื่อไฟล์รูปภาพออกจากลิงก์ URL
+                const oldImages = oldData.map(s => {
+                    if(!s.image_url) return null;
+                    const p = s.image_url.split('/');
+                    return p[p.length-1];
+                }).filter(n => n && !n.includes('placehold'));
+                
+                // สั่งลบรูปภาพเก่าทิ้งจากพื้นที่ Storage เพื่อคืนโควต้า
+                if(oldImages.length > 0) {
+                    await dbClient.storage.from('checkpoint-images').remove(oldImages);
+                }
+                
+                // สั่งลบประวัติการตรวจเก่าออกจาก Database
+                const oldIds = oldData.map(s => s.id);
+                await dbClient.from('scans').delete().in('id', oldIds);
+            }
+
+            // ==========================================
+            // กระบวนการที่ 2: บันทึกรูปและข้อมูลใหม่
+            // ==========================================
+            document.getElementById('status').innerText = "กำลังอัปโหลดรูปใหม่ขึ้น Cloud 🚀...";
+
+            // สร้างชื่อรูปใหม่ (กันชื่อซ้ำด้วยเวลา) แล้วอัปโหลด
+            const fileName = `mdb_${Date.now()}.jpg`;
+            const { error: uploadError } = await dbClient.storage.from('checkpoint-images').upload(fileName, selectedFile);
+            if (uploadError) throw uploadError;
+
+            // ขอ URL สาธารณะของรูปที่เพิ่งอัปโหลด
+            const { data: publicUrlData } = dbClient.storage.from('checkpoint-images').getPublicUrl(fileName);
+            const imageUrl = publicUrlData.publicUrl;
+
+            // เอาค่าที่กรอกมาต่อกันให้เป็นสตริง (เช่น 220 / 221 / 220)
+            const voltage = `${v1} / ${v2} / ${v3}`;
+            const current = `${a1} / ${a2} / ${a3}`;
+
+            // บันทึกลงฐานข้อมูลตาราง scans
+            const { error: dbError } = await dbClient.from('scans').insert([{
+                checkpoint_name: checkpointId,
+                inspector_name: inspector,
+                voltage: voltage,
+                current_amp: current,
+                fan_status: document.getElementById('fan_status').value,
+                general_condition: document.getElementById('general_condition').value,
+                cleanliness: document.getElementById('cleanliness').value,
+                image_url: imageUrl
+            }]);
+
+            if (dbError) throw dbError;
+
+            // แสดงผลว่าสำเร็จ
+            document.getElementById('status').innerText = "✅ บันทึกข้อมูลสำเร็จ! สามารถปิดหน้านี้ได้เลย";
+            document.getElementById('status').style.color = "#10b981";
+            
+        } catch (error) {
+            console.error(error);
+            document.getElementById('status').innerText = "❌ เกิดข้อผิดพลาด: " + error.message;
+            document.getElementById('btnSubmit').disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
