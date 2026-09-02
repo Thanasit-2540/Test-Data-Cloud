@@ -540,7 +540,7 @@
     async function loadCoreData() {
         // ใช้ Promise.all ให้ดึงข้อมูล 3 ตารางพร้อมกันแบบติดจรวด
         const [qrRes, scanRes, holRes] = await Promise.all([
-            dbClient.from('QRCode').select('*').order('id', { ascending: true }),
+            dbClient.from('QRcode').select('*').order('checkpoint', { ascending: true }),
             dbClient.from('scans').select('*').order('created_at', { ascending: false }),
             dbClient.from('holidays').select('*').order('holiday_date', { ascending: false })
         ]);
@@ -700,7 +700,7 @@
             qrBody.innerHTML += `
                 <tr>
                     <td><strong>${item.checkpoint}</strong></td>
-                    <td>${item.Location || '-'}</td>
+                    <td>${item.Location || '-'} <br> <span style="font-size:0.85em; color:#64748b;">${item.Location1 || ''}</span></td>
                     <td><a href="${qrImageUrl}" target="_blank" class="btn-qr">🖼️ ดูรูป / โหลด QR Code</a></td>
                     <td><button class="btn-delete" onclick="deleteQRCode('${item.checkpoint}')">🗑️ ลบ</button></td>
                 </tr>
@@ -965,7 +965,7 @@
         if (error) alert("Error: " + error.message);
     }
     
-    // อัปเดตฟังก์ชันเพิ่มจุดตรวจ ให้รวมชื่อตึกและชั้นเข้าด้วยกัน
+    // อัปเดตฟังก์ชันเพิ่มจุดตรวจ ให้แยกคอลัมน์ Location และ Location1 ตามฐานข้อมูลใหม่
     async function addQRCode() {
         const cp = document.getElementById('newCheckpoint').value;
         const bldg = document.getElementById('newBuilding').value;
@@ -973,17 +973,16 @@
         
         if(!cp) return alert('กรุณาระบุรหัสจุดตรวจให้เรียบร้อยครับ');
         
-        // เอา อาคาร + ชั้น มารวมกันให้อ่านง่าย เช่น "อาคาร 1, ชั้น 1 ห้องเครื่อง"
-        let fullLocation = bldg;
-        if (flr && flr.trim() !== '') {
-            fullLocation = `${bldg}, ${flr.trim()}`;
-        }
-        
-        const { error } = await dbClient.from('QRCode').insert([{ checkpoint: cp, Location: fullLocation }]);
+        // แยกเก็บ Location (อาคาร) และ Location1 (ชั้น/โซน) ลงฐานข้อมูล
+        const { error } = await dbClient.from('QRcode').insert([{ 
+            checkpoint: cp, 
+            Location: bldg,
+            Location1: flr || '' 
+        }]);
         
         if(error) alert("Error: " + error.message);
         else {
-            alert(`✅ เพิ่มจุดตรวจ ${cp} (${fullLocation}) สำเร็จ!`);
+            alert(`✅ เพิ่มจุดตรวจ ${cp} (${bldg} ${flr}) สำเร็จ!`);
             document.getElementById('newCheckpoint').value = '';
             document.getElementById('newFloor').value = '';
         }
@@ -991,7 +990,7 @@
     
     async function deleteQRCode(checkpointName) {
         if(!confirm(`ลบจุดตรวจ ${checkpointName}?`)) return;
-        const { error } = await dbClient.from('QRCode').delete().eq('checkpoint', checkpointName);
+        const { error } = await dbClient.from('QRcode').delete().eq('checkpoint', checkpointName);
         if(error) alert("Error: " + error.message);
     }
 
