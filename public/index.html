@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Travel Dashboard</title>
+    <!-- โหลดไลบรารี SheetJS สำหรับสร้างไฟล์ Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212; /* พื้นหลังสีดำเข้ม */
+            background-color: #121212;
             color: #e0e0e0;
             margin: 0;
             padding: 40px 20px;
@@ -29,7 +31,6 @@
             margin-bottom: 40px;
         }
         
-        /* ปุ่มกด */
         .controls {
             display: flex;
             justify-content: center;
@@ -48,25 +49,29 @@
         }
         button:active { transform: scale(0.95); }
         .btn-generate { 
-            background-color: #0ea5e9 !important; /* บังคับสีป้องกัน Dark Reader ลบสี */
+            background-color: #0ea5e9 !important;
             color: #ffffff !important; 
         }
         .btn-generate:hover { background-color: #0284c7 !important; }
         
+        .btn-export {
+            background-color: #10b981 !important; /* สีเขียวสำหรับ Excel */
+            color: #ffffff !important;
+        }
+        .btn-export:hover { background-color: #059669 !important; }
+
         .btn-clear { 
             background-color: #ef4444 !important; 
             color: #ffffff !important; 
         }
         .btn-clear:hover { background-color: #dc2626 !important; }
         
-        /* ตารางกริดของการ์ด */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 30px;
         }
         
-        /* การออกแบบการ์ดที่เที่ยว */
         .card {
             background-color: #1e293b !important;
             border-radius: 16px;
@@ -84,7 +89,7 @@
         .card-image-wrapper {
             width: 100%;
             height: 220px;
-            background-color: #334155; /* สีพื้นหลังตอนรูปกำลังโหลด */
+            background-color: #334155;
             position: relative;
         }
         .card img {
@@ -94,7 +99,6 @@
             display: block;
         }
         
-        /* ป้ายแท็กประเทศที่ลอยอยู่บนรูป */
         .badge-country {
             position: absolute;
             top: 15px;
@@ -123,7 +127,7 @@
         .card .time {
             font-size: 0.9em;
             color: #94a3b8 !important;
-            margin-top: auto; /* ดันเวลาไปอยู่ล่างสุดเสมอ */
+            margin-top: auto;
             padding-top: 15px;
             border-top: 1px solid #334155;
         }
@@ -147,6 +151,8 @@
     
     <div class="controls">
         <button class="btn-generate" onclick="generateData()">🎲 สุ่มสถานที่เที่ยวใหม่</button>
+        <!-- เพิ่มปุ่มดาวน์โหลด Excel -->
+        <button class="btn-export" onclick="exportToExcel()">📊 โหลดเป็น Excel</button>
         <button class="btn-clear" onclick="clearData()">🗑️ ล้างข้อมูล</button>
     </div>
 
@@ -172,7 +178,6 @@
             const card = `
                 <div class="card">
                     <div class="card-image-wrapper">
-                        <!-- ถ้ารูปโหลดไม่ขึ้น จะโชว์กรอบสีเทาแทน -->
                         <img src="${item.imageUrl}" alt="${item.place}" onerror="this.style.display='none'">
                         <span class="badge-country">📍 ${item.country}</span>
                     </div>
@@ -194,6 +199,12 @@
     async function clearData() {
         await fetch('/api/data', { method: 'DELETE' });
         fetchData();
+    }
+
+    // ฟังก์ชันใหม่สำหรับดาวน์โหลดไฟล์ Excel (แบบมีรูปภาพจาก Server)
+    function exportToExcel() {
+        // ให้บราวเซอร์วิ่งไปโหลดไฟล์จาก API ที่เราเพิ่งสร้างใน server.js
+        window.location.href = '/api/export';
     }
 
     fetchData();

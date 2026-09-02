@@ -82,6 +82,70 @@ app.delete('/api/data', async (req, res) => {
     }
 });
 
+const ExcelJS = require('exceljs');
+const axios = require('axios');
+
+// API: โหลดไฟล์ Excel พร้อมรูปภาพจริง
+app.get('/api/export', async (req, res) => {
+    try {
+        const snapshot = await db.collection('travels').orderBy('timestamp', 'asc').get();
+        const travels = snapshot.docs.map(doc => doc.data());
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Travel Data');
+
+        // ตั้งค่าความกว้างคอลัมน์
+        worksheet.columns = [
+            { header: 'ลำดับ', key: 'id', width: 10 },
+            { header: 'รูปภาพ', key: 'image', width: 25 },
+            { header: 'ชื่อสถานที่', key: 'place', width: 25 },
+            { header: 'ประเทศ', key: 'country', width: 20 },
+            { header: 'เวลาที่บันทึก', key: 'timestamp', width: 25 }
+        ];
+
+        // วนลูปใส่ข้อมูลและรูปภาพ
+        for (let i = 0; i < travels.length; i++) {
+            const item = travels[i];
+            const row = worksheet.addRow({
+                id: i + 1,
+                place: item.place,
+                country: item.country,
+                timestamp: item.timestamp
+            });
+
+            row.height = 80; // ขยายความสูงแถวเพื่อให้พอดีกับรูป
+
+            try {
+                // โหลดรูปภาพจาก URL
+                const imageResponse = await axios.get(item.imageUrl, { responseType: 'arraybuffer' });
+                
+                // แปลงรูปเข้า Workbook
+                const imageId = workbook.addImage({
+                    buffer: imageResponse.data,
+                    extension: 'jpeg',
+                });
+
+                // แปะรูปภาพลงในเซลล์ (คอลัมน์ที่ 2 = index 1, แถวที่ i+1 เพราะแถว 0 คือ Header)
+                worksheet.addImage(imageId, {
+                    tl: { col: 1, row: i + 1 },
+                    ext: { width: 120, height: 80 }
+                });
+            } catch (imgErr) {
+                console.error("โหลดรูปภาพไม่สำเร็จ:", imgErr.message);
+            }
+        }
+
+        // ส่งไฟล์ Excel กลับไปให้ผู้ใช้ดาวน์โหลด
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=' + encodeURIComponent('Travel_Data_With_Images.xlsx'));
+        
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 เซิร์ฟเวอร์ทำงานแล้วที่พอร์ต: ${PORT}`);
