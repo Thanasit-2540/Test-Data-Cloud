@@ -6,6 +6,10 @@
     <title>แดชบอร์ดตู้ไฟ MDB</title>
     <!-- นำเข้าไลบรารีของ Supabase สำหรับเชื่อมต่อฐานข้อมูล -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS สำหรับสร้างไฟล์ Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- JSZip สำหรับรวมหลายไฟล์ Excel เป็น ZIP เดียว -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* (ดีไซน์ UI CSS) */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; padding: 20px; margin: 0; color: #0f172a; }
@@ -53,6 +57,10 @@
         .btn-clear { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
         .btn-qr { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
         .btn-fix { background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-download { background: #0891b2; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: 4px; }
+        .btn-export { background: #16a34a; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
+        .btn-export:hover { background: #15803d; }
+        .export-section { background: white; border: 2px solid #16a34a; border-radius: 12px; padding: 20px; margin-bottom: 25px; }
 
         .holiday-banner { background: #dbeafe; color: #1e40af; padding: 15px; border-radius: 12px; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid #bfdbfe; display: none; }
         .checkbox-group { display: flex; gap: 15px; align-items: center; height: 40px; }
@@ -323,6 +331,28 @@
     </div>
 
     <hr style="border: 1px solid #e2e8f0; margin: 30px 0;">
+
+    <!-- ======================================================= -->
+    <!-- ระบบ Export Excel ข้อมูลการตรวจสอบ -->
+    <!-- ======================================================= -->
+    <h2>📥 Export ข้อมูลการตรวจ (Excel)</h2>
+    <div class="export-section">
+        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
+            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
+        </p>
+        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันเริ่มต้น</label>
+                <input type="date" id="exportStartDate">
+            </div>
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
+                <input type="date" id="exportEndDate">
+            </div>
+            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
+        </div>
+        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
+    </div>
 
     <!-- ======================================================= -->
     <!-- ระบบจัดการ QR Code ใหม่ที่มีตัวกรองอาคาร -->
@@ -701,7 +731,10 @@
                 <tr>
                     <td><strong>${item.checkpoint}</strong></td>
                     <td>${item.Location || '-'} <br> <span style="font-size:0.85em; color:#64748b;">${item.Location1 || ''}</span></td>
-                    <td><a href="${qrImageUrl}" target="_blank" class="btn-qr">🖼️ ดูรูป / โหลด QR Code</a></td>
+                    <td>
+                        <a href="${qrImageUrl}" target="_blank" class="btn-qr">🖼️ ดูรูป</a>
+                        <button class="btn-download" onclick="downloadQRCode('${item.checkpoint}', '${(item.Location || '').replace(/'/g, "\\'")}', '${(item.Location1 || '').replace(/'/g, "\\'")}')">⬇️ โหลด QR</button>
+                    </td>
                     <td><button class="btn-delete" onclick="deleteQRCode('${item.checkpoint}')">🗑️ ลบ</button></td>
                 </tr>
             `;
@@ -1035,8 +1068,164 @@
     // ฟังก์ชันย่อ-ขยายรูปภาพเมื่อคลิก
     function showImg(url) { document.getElementById('fullImg').src = url; document.getElementById('imgModal').style.display = 'flex'; }
 
+    // ----------------------------------------------------------------------
+    // 📌 ฟีเจอร์ที่ 1: ดาวน์โหลด QR Code เป็น PNG พร้อมข้อมูลตำแหน่ง
+    // ใช้ Canvas API วาด QR Code + ชื่อจุดตรวจ + อาคาร + ชั้น/โซน
+    // ----------------------------------------------------------------------
+    function downloadQRCode(checkpoint, location, location1) {
+        const scanUrl   = window.location.origin + `/scan.html?point=${encodeURIComponent(checkpoint)}`;
+        const qrApiUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+        const padding   = 20;
+        const qrSize    = 300;
+        const lineH     = 24;
+        const lines     = [checkpoint, location, location1].filter(t => t && t.trim() !== '');
+        const textH     = lines.length * lineH + padding * 2;
+        const canvas    = document.createElement('canvas');
+        canvas.width    = qrSize + padding * 2;
+        canvas.height   = qrSize + textH + padding;
+        const ctx = canvas.getContext('2d');
+
+        // พื้นหลังสีขาว
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            // วาด QR Code
+            ctx.drawImage(img, padding, padding, qrSize, qrSize);
+
+            // เส้นคั่น
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, qrSize + padding + 8);
+            ctx.lineTo(canvas.width - padding, qrSize + padding + 8);
+            ctx.stroke();
+
+            // ชื่อจุดตรวจ (ตัวหนา ใหญ่)
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 18px Arial, sans-serif';
+            ctx.fillText(checkpoint, canvas.width / 2, qrSize + padding + lineH + 10);
+
+            // อาคาร (Location)
+            if (location && location.trim()) {
+                ctx.font = '14px Arial, sans-serif';
+                ctx.fillStyle = '#475569';
+                ctx.fillText(location, canvas.width / 2, qrSize + padding + lineH * 2 + 10);
+            }
+
+            // ชั้น/โซน (Location1)
+            if (location1 && location1.trim()) {
+                ctx.font = '14px Arial, sans-serif';
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(location1, canvas.width / 2, qrSize + padding + lineH * 3 + 10);
+            }
+
+            // ดาวน์โหลด
+            const a = document.createElement('a');
+            a.download = `QR_${checkpoint}.png`;
+            a.href = canvas.toDataURL('image/png');
+            a.click();
+        };
+        img.onerror = () => alert('โหลดรูป QR ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+        img.src = qrApiUrl;
+    }
+
+    // ----------------------------------------------------------------------
+    // 📌 ฟีเจอร์ที่ 2: Export ข้อมูลการตรวจเป็น Excel / ZIP
+    // ชื่อไฟล์ใช้ พ.ศ. 2 หลัก เช่น 3-9-69.xlsx
+    // ----------------------------------------------------------------------
+
+    // แปลง YYYY-MM-DD → ชื่อไฟล์ เช่น "3-9-69"
+    function formatThaiFilename(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const day   = d.getDate();
+        const month = d.getMonth() + 1;
+        const yy    = (d.getFullYear() + 543) % 100; // 2026+543=2569 → เอาแค่ 2 หลักท้าย = 69
+        return `${day}-${month}-${yy}`;
+    }
+
+    // สร้าง Workbook จากข้อมูลสแกนของวันนั้น
+    function createWorkbook(dateStr, scans) {
+        const wb = XLSX.utils.book_new();
+        const header = ['โซนตู้ไฟ', 'วัน-เวลาบันทึก', 'ผู้ตรวจสอบ', 'แรงดัน (V)', 'กระแส (A)', 'พัดลม', 'สภาพตู้', 'ความสะอาด'];
+        const rows = scans.map(s => [
+            s.checkpoint_name  || '',
+            new Date(s.created_at).toLocaleString('th-TH'),
+            s.inspector_name   || '',
+            s.voltage          || '',
+            s.current_amp      || '',
+            s.fan_status       || '',
+            s.general_condition|| '',
+            s.cleanliness      || ''
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        // ปรับความกว้างคอลัมน์
+        ws['!cols'] = header.map((h, i) => ({ wch: Math.max(h.length, ...rows.map(r => String(r[i] || '').length)) + 3 }));
+        XLSX.utils.book_append_sheet(wb, ws, formatThaiFilename(dateStr));
+        return wb;
+    }
+
+    // ฟังก์ชันหลัก: Export ตามช่วงวันที่
+    async function exportExcel() {
+        const startDate = document.getElementById('exportStartDate').value;
+        const endDate   = document.getElementById('exportEndDate').value || startDate;
+        if (!startDate) return alert('กรุณาเลือกวันเริ่มต้นก่อนครับ!');
+        if (endDate < startDate) return alert('วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่มต้นครับ!');
+
+        const statusEl = document.getElementById('exportStatus');
+        statusEl.style.display  = 'block';
+        statusEl.style.color    = '#2563eb';
+        statusEl.textContent    = '⏳ กำลังเตรียมข้อมูล...';
+
+        // จัดกลุ่มตามวันที่ (Local date ไม่ให้เพี้ยน Timezone)
+        const scansByDate = {};
+        scansData.forEach(scan => {
+            const d = new Date(scan.created_at);
+            const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            if (localDate >= startDate && localDate <= endDate) {
+                if (!scansByDate[localDate]) scansByDate[localDate] = [];
+                scansByDate[localDate].push(scan);
+            }
+        });
+
+        const dates = Object.keys(scansByDate).sort();
+        if (dates.length === 0) {
+            statusEl.style.color = '#ef4444';
+            statusEl.textContent = '❌ ไม่พบข้อมูลในช่วงวันที่เลือกครับ';
+            return;
+        }
+
+        if (dates.length === 1) {
+            // วันเดียว → .xlsx โดยตรง
+            const wb = createWorkbook(dates[0], scansByDate[dates[0]]);
+            XLSX.writeFile(wb, `${formatThaiFilename(dates[0])}.xlsx`);
+            statusEl.style.color = '#16a34a';
+            statusEl.textContent = `✅ ดาวน์โหลดสำเร็จ: ${formatThaiFilename(dates[0])}.xlsx`;
+        } else {
+            // หลายวัน → ZIP ที่มีไฟล์แยกทีละวัน
+            statusEl.textContent = `⏳ กำลังสร้าง ZIP (${dates.length} ไฟล์)...`;
+            const zip = new JSZip();
+            dates.forEach(dateStr => {
+                const wb  = createWorkbook(dateStr, scansByDate[dateStr]);
+                const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                zip.file(`${formatThaiFilename(dateStr)}.xlsx`, out);
+            });
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href     = URL.createObjectURL(blob);
+            link.download = `ข้อมูล_${formatThaiFilename(startDate)}_ถึง_${formatThaiFilename(endDate)}.zip`;
+            link.click();
+            statusEl.style.color = '#16a34a';
+            statusEl.textContent = `✅ ดาวน์โหลด ZIP สำเร็จ! (${dates.length} ไฟล์: ${dates.map(formatThaiFilename).join(', ')})`;
+        }
+    }
+
     // เริ่มทำงานระบบ!
     init();
+
 </script>
 
 </body>
