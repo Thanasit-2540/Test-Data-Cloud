@@ -986,6 +986,9 @@
             document.getElementById('retroV').value = '';
             document.getElementById('retroA').value = '';
             
+            // โหลดข้อมูลใหม่เพื่ออัปเดตตารางทันทีโดยไม่ต้องรีเฟรชหน้าเว็บ (ยังอยู่หน้าเดิม)
+            loadCoreData();
+            
         } catch (error) {
             alert("เกิดข้อผิดพลาด: " + error.message);
         }
@@ -1029,7 +1032,7 @@
             const { error } = await dbClient.from('holidays').insert(datesToInsert);
             btn.disabled = false; btn.innerText = "✨ สร้างรวดเดียว!";
             if (error) alert("Error: " + error.message);
-            else alert(`✨ สร้างสำเร็จ ${datesToInsert.length} วัน!`);
+            else { alert(`✨ สร้างสำเร็จ ${datesToInsert.length} วัน!`); loadCoreData(); }
         }
     }
 
@@ -1062,7 +1065,7 @@
         const { error: dbErr } = await dbClient.from('scans').delete().in('id', idsToDelete);
         
         if (dbErr) alert("เกิดข้อผิดพลาดในการลบข้อมูล: " + dbErr.message);
-        else alert(`🧹 ล้างข้อมูลและรูปเก่าจำนวน ${oldRecords.length} รายการ เรียบร้อยแล้ว! ได้พื้นที่ว่างคืนมาเพียบครับ 🎉`);
+        else { alert(`🧹 ล้างข้อมูลและรูปเก่าจำนวน ${oldRecords.length} รายการ เรียบร้อยแล้ว! ได้พื้นที่ว่างคืนมาเพียบครับ 🎉`); loadCoreData(); }
     }
 
     // ล้างวันหยุดทั้งหมด (กรณีขึ้นปีใหม่)
@@ -1071,7 +1074,7 @@
         // ใช้ neq('holiday_date', '1900-01-01') แทน id เพื่อกวาดลบทั้งหมดแบบไม่พึ่งคอลัมน์ id
         const { error } = await dbClient.from('holidays').delete().neq('holiday_date', '1900-01-01');
         if (error) alert("Error: " + error.message);
-        else alert("🗑️ ล้างวันหยุดทั้งหมดเรียบร้อยแล้ว!");
+        else { alert("🗑️ ล้างวันหยุดทั้งหมดเรียบร้อยแล้ว!"); loadCoreData(); }
     }
 
     // ----------------------------------------------------------------------
@@ -1087,7 +1090,11 @@
         
         const { error } = await dbClient.from('holidays').insert([{ holiday_date: d, description: desc }]);
         if (error) alert("Error: " + error.message);
-        else { document.getElementById('newHolidayDate').value=''; document.getElementById('newHolidayDesc').value=''; }
+        else { 
+            document.getElementById('newHolidayDate').value=''; 
+            document.getElementById('newHolidayDesc').value=''; 
+            loadCoreData(); 
+        }
     }
     
     // เปลี่ยนจากรับ id เป็นรับ holiday_date
@@ -1095,6 +1102,7 @@
         if(!confirm('ลบวันหยุดนี้?')) return;
         const { error } = await dbClient.from('holidays').delete().eq('holiday_date', holidayDate);
         if (error) alert("Error: " + error.message);
+        else loadCoreData();
     }
     
     // อัปเดตฟังก์ชันเพิ่มจุดตรวจ ให้แยกคอลัมน์ Location และ Location1 ตามฐานข้อมูลใหม่
@@ -1117,6 +1125,7 @@
             alert(`✅ เพิ่มจุดตรวจ ${cp} (${bldg} ${flr}) สำเร็จ!`);
             document.getElementById('newCheckpoint').value = '';
             document.getElementById('newFloor').value = '';
+            loadCoreData();
         }
     }
     
@@ -1124,6 +1133,7 @@
         if(!confirm(`ลบจุดตรวจ ${checkpointName}?`)) return;
         const { error } = await dbClient.from('QRcode').delete().eq('checkpoint', checkpointName);
         if(error) alert("Error: " + error.message);
+        else loadCoreData();
     }
 
     // ----------------------------------------------------------------------
@@ -1175,7 +1185,10 @@
         // ส่งข้อมูลขึ้นฐานข้อมูล
         const { error } = await dbClient.from('scans').insert([payload]);
         if (error) alert("Error: " + error.message);
-        else { document.getElementById('fixModal').style.display = 'none'; }
+        else { 
+            document.getElementById('fixModal').style.display = 'none'; 
+            loadCoreData();
+        }
     }
     
     // ฟังก์ชันย่อ-ขยายรูปภาพเมื่อคลิก
