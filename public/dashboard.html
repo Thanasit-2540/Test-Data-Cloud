@@ -115,7 +115,30 @@
         </div>
     </div>
 
+    <!-- ======================================================= -->
+    <!-- ส่วน Export Excel (เข้าถึงได้โดยไม่ต้องล็อกอินแอดมิน) -->
+    <!-- ======================================================= -->
+    <h2 style="margin-top:5px;">📥 Export ข้อมูลการตรวจ (Excel)</h2>
+    <div class="export-section">
+        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
+            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
+        </p>
+        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันเริ่มต้น</label>
+                <input type="date" id="exportStartDate">
+            </div>
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
+                <input type="date" id="exportEndDate">
+            </div>
+            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
+        </div>
+        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
+    </div>
+
     <!-- ตารางประวัติการตรวจเช็ค -->
+    <h2 style="margin-top:25px;">📋 ข้อมูลที่ตรวจแล้ว (5 รายการล่าสุด)</h2>
     <div class="table-container" style="max-height: 600px;">
         <table>
             <thead>
@@ -135,28 +158,6 @@
                 <tr><td colspan="9" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
             </tbody>
         </table>
-    </div>
-
-    <!-- ======================================================= -->
-    <!-- ส่วน Export Excel (เข้าถึงได้โดยไม่ต้องล็อกอินแอดมิน) -->
-    <!-- ======================================================= -->
-    <h2 style="margin-top:25px;">📥 Export ข้อมูลการตรวจ (Excel)</h2>
-    <div class="export-section">
-        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
-            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
-        </p>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันเริ่มต้น</label>
-                <input type="date" id="exportStartDate">
-            </div>
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
-                <input type="date" id="exportEndDate">
-            </div>
-            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
-        </div>
-        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
     </div>
 
 </div>
@@ -620,7 +621,9 @@
         tbody.innerHTML = '';
         if (scansData.length === 0) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">ยังไม่มีประวัติการตรวจเช็ค</td></tr>';
 
-        // วนลูปวาดตารางประวัติแต่ละแถว
+        let renderCount = 0; // ตัวนับจำนวนแถวที่แสดง
+
+        // วนลูปประวัติเพื่อคำนวณสถิติและวาดตาราง (แต่จะวาดแค่ 5 แถวแรก)
         scansData.forEach(item => {
             const itemDateObj = new Date(item.created_at);
             const itemDateStr = itemDateObj.toLocaleDateString('th-TH');
@@ -631,31 +634,40 @@
                              !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
                              !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-');
 
-            // เก็บสถิติรายวัน
+            // เก็บสถิติรายวัน (ทำครบทุกรายการ)
             if (itemDateStr === todayStr) { checkedToday.add(item.checkpoint_name); if (hasIssue) issuesTodayCount++; }
             if (itemDateStr === yesterdayStr) { checkedYesterday.add(item.checkpoint_name); }
 
-            // ทำป้ายสี Badge ปกติ=สีเขียว / ชำรุด=สีแดง
-            const getBadge = (text) => text.includes('ปกติ') || text.includes('สะอาด') ? `<span class="badge badge-ok">${text}</span>` : `<span class="badge badge-warn">${text}</span>`;
-            
-            // ถ้าแอดมินคีย์ให้ว่า "ละเว้นการตรวจ"
-            const isExempt = (item.inspector_name || '').includes('ละเว้น');
-            const condDisplay = isExempt ? `<span class="badge badge-warn">${item.general_condition}</span>` : getBadge(item.general_condition || '-');
+            // วาดตารางเฉพาะ 5 รายการล่าสุด
+            if (renderCount < 5) {
+                // ทำป้ายสี Badge ปกติ=สีเขียว / ชำรุด=สีแดง
+                const getBadge = (text) => text.includes('ปกติ') || text.includes('สะอาด') ? `<span class="badge badge-ok">${text}</span>` : `<span class="badge badge-warn">${text}</span>`;
+                
+                // ถ้าแอดมินคีย์ให้ว่า "ละเว้นการตรวจ"
+                const isExempt = (item.inspector_name || '').includes('ละเว้น');
+                const condDisplay = isExempt ? `<span class="badge badge-warn">${item.general_condition}</span>` : getBadge(item.general_condition || '-');
 
-            tbody.innerHTML += `
-                <tr style="${isExempt ? 'background-color: #fffbeb;' : ''}">
-                    <td><strong>${item.checkpoint_name}</strong></td>
-                    <td>${timeStr}</td>
-                    <td><strong>${item.inspector_name || '-'}</strong></td>
-                    <td>${item.voltage || '-'}</td>
-                    <td>${item.current_amp || '-'}</td>
-                    <td>${getBadge(item.fan_status || '-')}</td>
-                    <td>${condDisplay}</td>
-                    <td>${getBadge(item.cleanliness || '-')}</td>
-                    <td><img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')"></td>
-                </tr>
-            `;
+                tbody.innerHTML += `
+                    <tr style="${isExempt ? 'background-color: #fffbeb;' : ''}">
+                        <td><strong>${item.checkpoint_name}</strong></td>
+                        <td>${timeStr}</td>
+                        <td><strong>${item.inspector_name || '-'}</strong></td>
+                        <td>${item.voltage || '-'}</td>
+                        <td>${item.current_amp || '-'}</td>
+                        <td>${getBadge(item.fan_status || '-')}</td>
+                        <td>${condDisplay}</td>
+                        <td>${getBadge(item.cleanliness || '-')}</td>
+                        <td><img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')"></td>
+                    </tr>
+                `;
+                renderCount++;
+            }
         });
+
+        // ถ้ามีข้อมูลมากกว่า 5 รายการ ให้เพิ่มแถวบอกว่ามีอีกนะแต่ซ่อนไว้
+        if (scansData.length > 5) {
+            tbody.innerHTML += `<tr><td colspan="9" style="text-align:center; color:#64748b; padding:15px;">...ยังมีข้อมูลเก่ากว่านี้อีก (กรุณาโหลด Excel เพื่อดูทั้งหมด)...</td></tr>`;
+        }
 
         // อัปเดตตัวเลข 4 กล่องสถิติ
         document.getElementById('stat-total-qr').innerText = allQRs.length;
