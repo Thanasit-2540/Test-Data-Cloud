@@ -34,6 +34,25 @@
     <h2>⚡ บันทึกการตรวจเช็คตู้ไฟ</h2>
     <div class="checkpoint-display" id="checkpointDisplay">โหลดข้อมูล...</div>
 
+    <!-- หน้าจอบังคับเปิด Chrome (แสดงเฉพาะเมื่อเปิดผ่าน LINE) -->
+    <div id="lineBanner" style="display:none; text-align:center; padding: 10px 0;">
+        <div style="font-size: 4em; margin-bottom: 15px;">📱</div>
+        <h3 style="color:#1e293b; margin-bottom:10px;">กรุณาเปิดใน Chrome</h3>
+        <p style="color:#64748b; font-size:0.95em; line-height:1.6; margin-bottom:25px;">
+            ระบบนี้ต้องการเปิดกล้องถ่ายรูปโดยตรง<br>
+            ซึ่ง LINE Browser ไม่รองรับครับ<br>
+            กรุณากดปุ่มด้านล่างเพื่อเปิดใน Chrome
+        </p>
+        <button onclick="openInChrome()" style="background:#06c755; color:white; border:none; padding:15px 35px; border-radius:10px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow: 0 4px 15px rgba(6,199,85,0.4);">
+            🌐 เปิดใน Chrome
+        </button>
+        <p style="color:#94a3b8; font-size:0.8em; margin-top:20px;">
+            💡 หรือกดปุ่ม <strong>"..."</strong> มุมขวาบนของ LINE<br>แล้วเลือก "เปิดในเบราว์เซอร์" ก็ได้ครับ
+        </p>
+    </div>
+
+    <!-- ฟอร์มหลัก (จะถูกซ่อนถ้าเปิดผ่าน LINE) -->
+    <div id="mainForm">
     <div class="form-group">
         <label>ชื่อผู้ตรวจสอบ:</label>
         <input type="text" id="inspector_name" placeholder="ระบุชื่อของคุณ">
@@ -89,6 +108,7 @@
 
     <button id="btnSubmit" class="btn-submit" onclick="submitForm()">💾 บันทึกผลการตรวจสอบ</button>
     <div id="status"></div>
+    </div>
 </div>
 
 <script>
@@ -102,6 +122,29 @@
     const urlParams = new URLSearchParams(window.location.search);
     const checkpointId = urlParams.get('point') || 'ไม่ระบุโซน';
     document.getElementById('checkpointDisplay').innerText = `โซน: ${checkpointId}`;
+
+    // ----------------------------------------------------------------------
+    // 📌 ตรวจจับว่าเปิดผ่าน LINE หรือเปล่า
+    // LINE In-App Browser จะมีคำว่า "Line/" อยู่ใน User Agent เสมอ
+    // ถ้าเปิดผ่าน LINE → ซ่อนฟอร์มทั้งหมด และแสดงหน้าบังคับให้ไปเปิด Chrome แทน
+    // ----------------------------------------------------------------------
+    const isLineBrowser = /Line\//i.test(navigator.userAgent);
+    if (isLineBrowser) {
+        document.getElementById('lineBanner').style.display = 'block'; // โชว์หน้าบังคับ
+        document.getElementById('mainForm').style.display = 'none';    // ซ่อนฟอร์มทั้งหมด
+    }
+
+    // ฟังก์ชันสำหรับพาผู้ใช้ออกจาก LINE ไปเปิดใน Chrome
+    function openInChrome() {
+        const currentUrl = window.location.href;
+        // intent:// scheme สำหรับ Android บังคับให้เปิดใน Chrome
+        const intentUrl = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+        window.location.href = intentUrl;
+        // fallback สำหรับ iOS หรือ Chrome ไม่ได้ติดตั้ง
+        setTimeout(() => {
+            alert(`📋 กรุณาคัดลอก URL นี้ไปวางในแอป Chrome ครับ:\n\n${currentUrl}`);
+        }, 1500);
+    }
 
     // ----------------------------------------------------------------------
     // 📌 ฟังก์ชันเริ่มต้น: เชื่อมต่อฐานข้อมูล
