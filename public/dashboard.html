@@ -720,25 +720,27 @@
         if (isYestHoliday) {
             missedBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#10b981; font-weight:bold; padding:20px;">🏖️ เมื่อวานเป็นวันหยุด ไม่มีการเช็คยอดตกหล่นครับ</td></tr>';
         } else {
+            const todayStr   = new Date().toLocaleDateString('th-TH');
             const yesterdayStr = yesterdayDate.toLocaleDateString('th-TH');
             
-            let checkedYesterday = new Set();
+            let checkedToday     = new Set(); // ตรวจแล้ววันนี้
+            let checkedYesterday = new Set(); // ตรวจแล้วเมื่อวาน
             let lastScanMap = {}; // จำว่าแต่ละตู้ ตรวจครั้งล่าสุดวันไหน
             
             scansData.forEach(item => { 
                 const dStr = new Date(item.created_at).toLocaleDateString('th-TH');
-                if (dStr === yesterdayStr) {
-                    checkedYesterday.add(item.checkpoint_name); 
-                }
+                if (dStr === todayStr)     checkedToday.add(item.checkpoint_name);
+                if (dStr === yesterdayStr) checkedYesterday.add(item.checkpoint_name);
                 if (!lastScanMap[item.checkpoint_name]) {
                     lastScanMap[item.checkpoint_name] = new Date(item.created_at).getTime();
                 }
             });
             
             let missedQRs = [];
-            // ค้นหาตูัที่ไม่ได้ตรวจเมื่อวาน
+            // ค้นหาตู้ที่ไม่ได้ตรวจเมื่อวาน "และ" ยังไม่ได้ตรวจวันนี้ด้วย
+            // ถ้าวันนี้ตรวจแล้ว แปลว่าสถานการณ์แก้ไขแล้ว ไม่ต้องโชว์ในรายการตกหล่นอีก
             allQRs.forEach(qr => {
-                if (!checkedYesterday.has(qr.checkpoint)) {
+                if (!checkedYesterday.has(qr.checkpoint) && !checkedToday.has(qr.checkpoint)) {
                     missedQRs.push({
                         checkpoint: qr.checkpoint,
                         Location: qr.Location,
