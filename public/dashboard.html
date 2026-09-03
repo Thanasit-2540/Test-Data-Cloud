@@ -136,6 +136,29 @@
             </tbody>
         </table>
     </div>
+
+    <!-- ======================================================= -->
+    <!-- ส่วน Export Excel (เข้าถึงได้โดยไม่ต้องล็อกอินแอดมิน) -->
+    <!-- ======================================================= -->
+    <h2 style="margin-top:25px;">📥 Export ข้อมูลการตรวจ (Excel)</h2>
+    <div class="export-section">
+        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
+            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
+        </p>
+        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันเริ่มต้น</label>
+                <input type="date" id="exportStartDate">
+            </div>
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
+                <input type="date" id="exportEndDate">
+            </div>
+            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
+        </div>
+        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
+    </div>
+
 </div>
 
 <!-- ======================================================= -->
@@ -332,27 +355,6 @@
 
     <hr style="border: 1px solid #e2e8f0; margin: 30px 0;">
 
-    <!-- ======================================================= -->
-    <!-- ระบบ Export Excel ข้อมูลการตรวจสอบ -->
-    <!-- ======================================================= -->
-    <h2>📥 Export ข้อมูลการตรวจ (Excel)</h2>
-    <div class="export-section">
-        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
-            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
-        </p>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันเริ่มต้น</label>
-                <input type="date" id="exportStartDate">
-            </div>
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
-                <input type="date" id="exportEndDate">
-            </div>
-            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
-        </div>
-        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
-    </div>
 
     <!-- ======================================================= -->
     <!-- ระบบจัดการ QR Code ใหม่ที่มีตัวกรองอาคาร -->
