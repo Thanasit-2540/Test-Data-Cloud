@@ -6,8 +6,8 @@
     <title>แดชบอร์ดตู้ไฟ MDB</title>
     <!-- นำเข้าไลบรารีของ Supabase สำหรับเชื่อมต่อฐานข้อมูล -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- SheetJS สำหรับสร้างไฟล์ Excel -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS สำหรับสร้างไฟล์ Excel แบบฝังรูปภาพได้ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <!-- JSZip สำหรับรวมหลายไฟล์ Excel เป็น ZIP เดียว -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -674,12 +674,18 @@
         document.getElementById('stat-checked-today').innerText = checkedToday.size;
         document.getElementById('stat-issues-today').innerText = issuesTodayCount;
         
-        // สถิติ: จุดที่หลุดของเมื่อวาน
+        // สถิติ: จุดที่หลุดของเมื่อวาน (ไม่นับจุดที่แก้ไขสแกนไปแล้ววันนี้)
         if (isYesterdayHoliday) {
             document.getElementById('stat-missed-yesterday').innerText = '0 (วันหยุด)';
             document.getElementById('stat-missed-yesterday').style.color = '#10b981';
         } else {
-            document.getElementById('stat-missed-yesterday').innerText = Math.max(0, allQRs.length - checkedYesterday.size);
+            let unresolvedMissedCount = 0;
+            allQRs.forEach(qr => {
+                if (!checkedYesterday.has(qr.checkpoint) && !checkedToday.has(qr.checkpoint)) {
+                    unresolvedMissedCount++;
+                }
+            });
+            document.getElementById('stat-missed-yesterday').innerText = unresolvedMissedCount;
             document.getElementById('stat-missed-yesterday').style.color = '';
         }
     }
@@ -1161,25 +1167,70 @@
         return `${day}-${month}-${yy}`;
     }
 
-    // สร้าง Workbook จากข้อมูลสแกนของวันนั้น
-    function createWorkbook(dateStr, scans) {
-        const wb = XLSX.utils.book_new();
-        const header = ['โซนตู้ไฟ', 'วัน-เวลาบันทึก', 'ผู้ตรวจสอบ', 'แรงดัน (V)', 'กระแส (A)', 'พัดลม', 'สภาพตู้', 'ความสะอาด'];
-        const rows = scans.map(s => [
-            s.checkpoint_name  || '',
-            new Date(s.created_at).toLocaleString('th-TH'),
-            s.inspector_name   || '',
-            s.voltage          || '',
-            s.current_amp      || '',
-            s.fan_status       || '',
-            s.general_condition|| '',
-            s.cleanliness      || ''
-        ]);
-        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-        // ปรับความกว้างคอลัมน์
-        ws['!cols'] = header.map((h, i) => ({ wch: Math.max(h.length, ...rows.map(r => String(r[i] || '').length)) + 3 }));
-        XLSX.utils.book_append_sheet(wb, ws, formatThaiFilename(dateStr));
-        return wb;
+    // สร้าง Workbook จากข้อมูลสแกนของวันนั้น (รองรับการฝังรูปภาพด้วย ExcelJS)
+    async function createWorkbook(dateStr, scans) {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet(formatThaiFilename(dateStr));
+        
+        // กำหนดหัวคอลัมน์
+        sheet.columns = [
+            { header: 'โซนตู้ไฟ', key: 'checkpoint', width: 15 },
+            { header: 'วัน-เวลาบันทึก', key: 'date', width: 22 },
+            { header: 'ผู้ตรวจสอบ', key: 'inspector', width: 20 },
+            { header: 'แรงดัน (V)', key: 'voltage', width: 15 },
+            { header: 'กระแส (A)', key: 'current', width: 15 },
+            { header: 'พัดลม', key: 'fan', width: 15 },
+            { header: 'สภาพตู้', key: 'condition', width: 15 },
+            { header: 'ความสะอาด', key: 'cleanliness', width: 15 },
+            { header: 'รูปหน้างาน', key: 'image', width: 25 }
+        ];
+
+        // ตกแต่งหัวตารางให้เป็นตัวหนา
+        sheet.getRow(1).font = { bold: true };
+
+        for (let i = 0; i < scans.length; i++) {
+            const s = scans[i];
+            const row = sheet.addRow({
+                checkpoint: s.checkpoint_name || '',
+                date: new Date(s.created_at).toLocaleString('th-TH'),
+                inspector: s.inspector_name || '',
+                voltage: s.voltage || '',
+                current: s.current_amp || '',
+                fan: s.fan_status || '',
+                condition: s.general_condition || '',
+                cleanliness: s.cleanliness || ''
+            });
+
+            // ปรับความสูงแถวเพื่อให้ใส่รูปภาพได้
+            row.height = 100;
+            row.alignment = { vertical: 'middle', horizontal: 'left' };
+
+            // โหลดรูปภาพและฝังลงใน Excel
+            if (s.image_url) {
+                try {
+                    // ใช้ fetch โหลดรูปมาเป็น Blob -> ArrayBuffer
+                    const response = await fetch(s.image_url);
+                    const blob = await response.blob();
+                    const buffer = await blob.arrayBuffer();
+                    
+                    const imageId = workbook.addImage({
+                        buffer: buffer,
+                        extension: 'jpeg', // รองรับ jpeg/png
+                    });
+                    
+                    // ใส่รูปภาพลงในเซลล์ (คอลัมน์ที่ 8 = รูปหน้างาน, แถวเริ่มที่ 1)
+                    // ใส่ padding เล็กน้อย (0.1) ให้รูปไม่ติดขอบเซลล์เกินไป
+                    sheet.addImage(imageId, {
+                        tl: { col: 8.1, row: i + 1.1 },
+                        ext: { width: 130, height: 90 }
+                    });
+                } catch (e) {
+                    console.error('Failed to load image:', e);
+                    row.getCell(9).value = '(โหลดรูปไม่ได้)';
+                }
+            }
+        }
+        return workbook;
     }
 
     // ฟังก์ชันหลัก: Export ตามช่วงวันที่
@@ -1192,48 +1243,65 @@
         const statusEl = document.getElementById('exportStatus');
         statusEl.style.display  = 'block';
         statusEl.style.color    = '#2563eb';
-        statusEl.textContent    = '⏳ กำลังเตรียมข้อมูล...';
+        statusEl.textContent    = '⏳ กำลังเตรียมข้อมูลและดาวน์โหลดรูปภาพ... (อาจใช้เวลาสักครู่)';
 
-        // จัดกลุ่มตามวันที่ (Local date ไม่ให้เพี้ยน Timezone)
-        const scansByDate = {};
-        scansData.forEach(scan => {
-            const d = new Date(scan.created_at);
-            const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            if (localDate >= startDate && localDate <= endDate) {
-                if (!scansByDate[localDate]) scansByDate[localDate] = [];
-                scansByDate[localDate].push(scan);
-            }
-        });
-
-        const dates = Object.keys(scansByDate).sort();
-        if (dates.length === 0) {
-            statusEl.style.color = '#ef4444';
-            statusEl.textContent = '❌ ไม่พบข้อมูลในช่วงวันที่เลือกครับ';
-            return;
-        }
-
-        if (dates.length === 1) {
-            // วันเดียว → .xlsx โดยตรง
-            const wb = createWorkbook(dates[0], scansByDate[dates[0]]);
-            XLSX.writeFile(wb, `${formatThaiFilename(dates[0])}.xlsx`);
-            statusEl.style.color = '#16a34a';
-            statusEl.textContent = `✅ ดาวน์โหลดสำเร็จ: ${formatThaiFilename(dates[0])}.xlsx`;
-        } else {
-            // หลายวัน → ZIP ที่มีไฟล์แยกทีละวัน
-            statusEl.textContent = `⏳ กำลังสร้าง ZIP (${dates.length} ไฟล์)...`;
-            const zip = new JSZip();
-            dates.forEach(dateStr => {
-                const wb  = createWorkbook(dateStr, scansByDate[dateStr]);
-                const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                zip.file(`${formatThaiFilename(dateStr)}.xlsx`, out);
+        try {
+            // จัดกลุ่มตามวันที่ (Local date ไม่ให้เพี้ยน Timezone)
+            const scansByDate = {};
+            scansData.forEach(scan => {
+                const d = new Date(scan.created_at);
+                const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                if (localDate >= startDate && localDate <= endDate) {
+                    if (!scansByDate[localDate]) scansByDate[localDate] = [];
+                    scansByDate[localDate].push(scan);
+                }
             });
-            const blob = await zip.generateAsync({ type: 'blob' });
-            const link = document.createElement('a');
-            link.href     = URL.createObjectURL(blob);
-            link.download = `ข้อมูล_${formatThaiFilename(startDate)}_ถึง_${formatThaiFilename(endDate)}.zip`;
-            link.click();
-            statusEl.style.color = '#16a34a';
-            statusEl.textContent = `✅ ดาวน์โหลด ZIP สำเร็จ! (${dates.length} ไฟล์: ${dates.map(formatThaiFilename).join(', ')})`;
+
+            const dates = Object.keys(scansByDate).sort();
+            if (dates.length === 0) {
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = '❌ ไม่พบข้อมูลในช่วงวันที่เลือกครับ';
+                return;
+            }
+
+            if (dates.length === 1) {
+                // วันเดียว → สร้าง Excel และ .xlsx โดยตรง
+                const wb = await createWorkbook(dates[0], scansByDate[dates[0]]);
+                const buffer = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${formatThaiFilename(dates[0])}.xlsx`;
+                link.click();
+                
+                statusEl.style.color = '#16a34a';
+                statusEl.textContent = `✅ ดาวน์โหลดสำเร็จ: ${formatThaiFilename(dates[0])}.xlsx`;
+            } else {
+                // หลายวัน → สร้าง Excel ทีละไฟล์แล้วรวมเป็น ZIP
+                statusEl.textContent = `⏳ กำลังสร้าง ZIP (${dates.length} ไฟล์)... รอรูปภาพโหลดแป๊บนึงนะครับ`;
+                const zip = new JSZip();
+                
+                for (let i = 0; i < dates.length; i++) {
+                    const dateStr = dates[i];
+                    const wb  = await createWorkbook(dateStr, scansByDate[dateStr]);
+                    const buffer = await wb.xlsx.writeBuffer();
+                    zip.file(`${formatThaiFilename(dateStr)}.xlsx`, buffer);
+                }
+                
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href     = URL.createObjectURL(blob);
+                link.download = `ข้อมูล_${formatThaiFilename(startDate)}_ถึง_${formatThaiFilename(endDate)}.zip`;
+                link.click();
+                
+                statusEl.style.color = '#16a34a';
+                statusEl.textContent = `✅ ดาวน์โหลด ZIP สำเร็จ! (${dates.length} ไฟล์: ${dates.map(formatThaiFilename).join(', ')})`;
+            }
+        } catch (err) {
+            console.error('Export Error:', err);
+            statusEl.style.color = '#ef4444';
+            statusEl.textContent = '❌ เกิดข้อผิดพลาดในการโหลดรูปหรือสร้างไฟล์ ลองอีกครั้งครับ';
         }
     }
 
