@@ -151,11 +151,16 @@
                     <th>พัดลม</th>
                     <th>สภาพตู้</th>
                     <th>ความสะอาด</th>
+                    <th>อุปกรณ์วัด</th>
+                    <th>ไฟโชว์</th>
+                    <th>สายไฟภายใน</th>
+                    <th>จุดต่อสายไฟ</th>
+                    <th>บริเวณรอบตู้</th>
                     <th>รูปหน้างาน</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
-                <tr><td colspan="9" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
+                <tr><td colspan="14" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
             </tbody>
         </table>
     </div>
@@ -294,11 +299,22 @@
                     <label>1. เลือกวันที่ย้อนหลัง</label>
                     <input type="date" id="retroDate" style="border-color: #8b5cf6; font-size: 1.05em;">
                 </div>
-                <div class="input-group" style="margin-bottom: 20px;">
-                    <label>2. เลือกรหัสจุดตรวจ (ตู้ไฟ)</label>
-                    <select id="retroCheckpoint" style="border-color: #8b5cf6; font-size: 1.05em;">
-                        <option value="">-- รอการโหลดจุดตรวจ --</option>
-                    </select>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div class="input-group" style="flex: 1;">
+                        <label>2. เลือกอาคาร</label>
+                        <select id="retroBuilding" style="border-color: #8b5cf6; font-size: 1.05em;" onchange="filterRetroCheckpoints()">
+                            <option value="all">-- ทุกอาคาร --</option>
+                            <option value="อาคาร 1">อาคาร 1</option>
+                            <option value="อาคาร 2">อาคาร 2</option>
+                            <option value="อาคาร 3">อาคาร 3</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="flex: 2;">
+                        <label>3. เลือกรหัสจุดตรวจ (ตู้ไฟ)</label>
+                        <select id="retroCheckpoint" style="border-color: #8b5cf6; font-size: 1.05em;">
+                            <option value="">-- รอการโหลดจุดตรวจ --</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -344,6 +360,50 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- 5 หัวข้อใหม่ -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="input-group" style="flex: 1;">
+                            <label>สภาพอุปกรณ์วัด (Meter)</label>
+                            <select id="retroMeter">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ ชำรุด/แจ้งซ่อม">❌ ชำรุด/แจ้งซ่อม</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>หลอดไฟโชว์</label>
+                            <select id="retroLights">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ หลอดขาด/แจ้งซ่อม">❌ หลอดขาด/แจ้งซ่อม</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="input-group" style="flex: 1;">
+                            <label>สภาพสายไฟภายใน</label>
+                            <select id="retroWiring">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ ชำรุด/เสื่อมสภาพ">❌ ชำรุด/เสื่อมสภาพ</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>จุดต่อสายไฟ</label>
+                            <select id="retroConnections">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ หลวม/ไหม้">❌ หลวม/ไหม้</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label>สภาพทั่วไปบริเวณตู้ควบคุม</label>
+                        <select id="retroSurrounding">
+                            <option value="✅ ปกติ">✅ ปกติ</option>
+                            <option value="❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย">❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย</option>
+                        </select>
+                    </div>
+
 
                     <button class="btn-magic" style="width: 100%; padding: 12px;" onclick="submitRetroEdit()">
                         💾 บันทึกทับข้อมูล (วันที่เลือก)
@@ -632,7 +692,12 @@
             // เช็คว่าตู้นี้มีอาการป่วย (ปัญหา) หรือไม่?
             const hasIssue = !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
                              !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
-                             !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-');
+                             !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-') ||
+                             !(item.meter_condition||'ปกติ').includes('ปกติ') ||
+                             !(item.indicator_lights||'ปกติ').includes('ปกติ') ||
+                             !(item.internal_wiring||'ปกติ').includes('ปกติ') ||
+                             !(item.wire_connections||'ปกติ').includes('ปกติ') ||
+                             !(item.surrounding_area||'ปกติ').includes('ปกติ');
 
             // เก็บสถิติรายวัน (ทำครบทุกรายการ)
             if (itemDateStr === todayStr) { checkedToday.add(item.checkpoint_name); if (hasIssue) issuesTodayCount++; }
@@ -657,6 +722,11 @@
                         <td>${getBadge(item.fan_status || '-')}</td>
                         <td>${condDisplay}</td>
                         <td>${getBadge(item.cleanliness || '-')}</td>
+                        <td>${getBadge(item.meter_condition || '-')}</td>
+                        <td>${getBadge(item.indicator_lights || '-')}</td>
+                        <td>${getBadge(item.internal_wiring || '-')}</td>
+                        <td>${getBadge(item.wire_connections || '-')}</td>
+                        <td>${getBadge(item.surrounding_area || '-')}</td>
                         <td><img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')"></td>
                     </tr>
                 `;
@@ -666,7 +736,7 @@
 
         // ถ้ามีข้อมูลมากกว่า 5 รายการ ให้เพิ่มแถวบอกว่ามีอีกนะแต่ซ่อนไว้
         if (scansData.length > 5) {
-            tbody.innerHTML += `<tr><td colspan="9" style="text-align:center; color:#64748b; padding:15px;">...ยังมีข้อมูลเก่ากว่านี้อีก (กรุณาโหลด Excel เพื่อดูทั้งหมด)...</td></tr>`;
+            tbody.innerHTML += `<tr><td colspan="14" style="text-align:center; color:#64748b; padding:15px;">...ยังมีข้อมูลเก่ากว่านี้อีก (กรุณาโหลด Excel เพื่อดูทั้งหมด)...</td></tr>`;
         }
 
         // อัปเดตตัวเลข 4 กล่องสถิติ
@@ -723,12 +793,8 @@
         const qrBody = document.getElementById('qrTableBody');
         qrBody.innerHTML = '';
         
-        // เติมรายชื่อตู้ไฟใส่ช่อง Dropdown ในส่วน "แก้ไขข้อมูลย้อนหลัง"
-        const retroCp = document.getElementById('retroCheckpoint');
-        retroCp.innerHTML = '<option value="">-- เลือกรหัสจุดตรวจ --</option>';
-        allQRs.forEach(item => {
-            retroCp.innerHTML += `<option value="${item.checkpoint}">${item.checkpoint}</option>`;
-        });
+        // อัปเดตรายชื่อตู้ไฟในส่วน "แก้ไขข้อมูลย้อนหลัง"
+        filterRetroCheckpoints();
 
         // ฟิลเตอร์อาคารในตาราง QR
         const filterBldg = document.getElementById('filterQrBuilding').value;
@@ -851,6 +917,12 @@
         const cond = document.getElementById('retroCond').value;
         const clean = document.getElementById('retroClean').value;
         
+        const meter = document.getElementById('retroMeter').value;
+        const lights = document.getElementById('retroLights').value;
+        const wiring = document.getElementById('retroWiring').value;
+        const connections = document.getElementById('retroConnections').value;
+        const surrounding = document.getElementById('retroSurrounding').value;
+        
         if (!v || !a) return alert("กรุณากรอกกระแสไฟและแรงดันไฟครับ (หากไม่มีให้ใส่ - แทน)");
 
         const confirmMsg = `🚨 ยืนยันการบันทึกข้อมูลของตู้ ${cp}\nประจำวันที่ ${dateVal} ใช่หรือไม่?\n\n(หากวันนั้นมีประวัติอยู่แล้ว ระบบจะทำการลบทับของเดิมทั้งหมด)`;
@@ -897,6 +969,11 @@
                 fan_status: fan,
                 general_condition: cond,
                 cleanliness: clean,
+                meter_condition: meter,
+                indicator_lights: lights,
+                internal_wiring: wiring,
+                wire_connections: connections,
+                surrounding_area: surrounding,
                 image_url: "https://placehold.co/400x300/8b5cf6/ffffff?text=Edited+by+Admin" // ใส่รูป placeholder สีม่วงแทนรูปถ่าย
             };
 
@@ -1052,6 +1129,22 @@
     // ----------------------------------------------------------------------
     // 📌 ระบบแก้ไขปัญหา "จุดตกหล่น" (เปิดป๊อปอัพ และเซฟข้อมูล)
     // ----------------------------------------------------------------------
+    // ฟิลเตอร์รายชื่อตู้ไฟในส่วน "แก้ไขข้อมูลย้อนหลัง"
+    function filterRetroCheckpoints() {
+        const building = document.getElementById('retroBuilding').value;
+        const retroCp = document.getElementById('retroCheckpoint');
+        retroCp.innerHTML = '<option value="">-- เลือกรหัสจุดตรวจ --</option>';
+        
+        let filtered = allQRs;
+        if (building !== 'all') {
+            filtered = allQRs.filter(item => (item.Location || '').includes(building));
+        }
+        
+        filtered.forEach(item => {
+            retroCp.innerHTML += `<option value="${item.checkpoint}">${item.checkpoint}</option>`;
+        });
+    }
+
     function openFixModal(point) { currentFixPoint = point; document.getElementById('fixPointName').innerText = point; document.getElementById('fixModal').style.display = 'flex'; }
     function toggleFixForm() {
         const type = document.getElementById('fixType').value;
@@ -1071,12 +1164,12 @@
             // แบบที่ 1: ละเว้นการตรวจ
             const reason = document.getElementById('exemptReason').value;
             if(!reason) return alert('กรุณาใส่เหตุผล');
-            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (ละเว้น)", general_condition: reason, voltage: "-", current_amp: "-", fan_status: "-", cleanliness: "-", image_url: "https://placehold.co/400x300/f59e0b/ffffff?text=Exempted+by+Admin" };
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (ละเว้น)", general_condition: reason, voltage: "-", current_amp: "-", fan_status: "-", cleanliness: "-", meter_condition: "-", indicator_lights: "-", internal_wiring: "-", wire_connections: "-", surrounding_area: "-", image_url: "https://placehold.co/400x300/f59e0b/ffffff?text=Exempted+by+Admin" };
         } else {
             // แบบที่ 2: คีย์ข้อมูลตัวเลขย้อนหลัง
             const v = document.getElementById('retroShortcutV').value; const a = document.getElementById('retroShortcutA').value;
             if(!v || !a) return alert('กรุณากรอกตัวเลขให้ครบ');
-            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (คีย์ย้อนหลัง)", voltage: v, current_amp: a, fan_status: "✅ ปกติ", general_condition: "✅ ปกติ", cleanliness: "✅ สะอาด", image_url: "https://placehold.co/400x300/3b82f6/ffffff?text=Retroactive+Entry" };
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (คีย์ย้อนหลัง)", voltage: v, current_amp: a, fan_status: "✅ ปกติ", general_condition: "✅ ปกติ", cleanliness: "✅ สะอาด", meter_condition: "✅ ปกติ", indicator_lights: "✅ ปกติ", internal_wiring: "✅ ปกติ", wire_connections: "✅ ปกติ", surrounding_area: "✅ ปกติ", image_url: "https://placehold.co/400x300/3b82f6/ffffff?text=Retroactive+Entry" };
         }
         
         // ส่งข้อมูลขึ้นฐานข้อมูล
@@ -1182,6 +1275,11 @@
             { header: 'พัดลม', key: 'fan', width: 15 },
             { header: 'สภาพตู้', key: 'condition', width: 15 },
             { header: 'ความสะอาด', key: 'cleanliness', width: 15 },
+            { header: 'สภาพอุปกรณ์วัด', key: 'meter_condition', width: 15 },
+            { header: 'หลอดไฟโชว์หน้าตู้', key: 'indicator_lights', width: 20 },
+            { header: 'สภาพสายไฟภายใน', key: 'internal_wiring', width: 20 },
+            { header: 'จุดต่อสายไฟ', key: 'wire_connections', width: 15 },
+            { header: 'บริเวณรอบตู้', key: 'surrounding_area', width: 20 },
             { header: 'รูปหน้างาน', key: 'image', width: 25 }
         ];
 
@@ -1198,7 +1296,12 @@
                 current: s.current_amp || '',
                 fan: s.fan_status || '',
                 condition: s.general_condition || '',
-                cleanliness: s.cleanliness || ''
+                cleanliness: s.cleanliness || '',
+                meter_condition: s.meter_condition || '',
+                indicator_lights: s.indicator_lights || '',
+                internal_wiring: s.internal_wiring || '',
+                wire_connections: s.wire_connections || '',
+                surrounding_area: s.surrounding_area || ''
             });
 
             // ปรับความสูงแถวเพื่อให้ใส่รูปภาพได้
@@ -1218,15 +1321,15 @@
                         extension: 'jpeg', // รองรับ jpeg/png
                     });
                     
-                    // ใส่รูปภาพลงในเซลล์ (คอลัมน์ที่ 8 = รูปหน้างาน, แถวเริ่มที่ 1)
+                    // ใส่รูปภาพลงในเซลล์ (คอลัมน์ที่ 13 = รูปหน้างาน, แถวเริ่มที่ 1)
                     // ใส่ padding เล็กน้อย (0.1) ให้รูปไม่ติดขอบเซลล์เกินไป
                     sheet.addImage(imageId, {
-                        tl: { col: 8.1, row: i + 1.1 },
+                        tl: { col: 13.1, row: i + 1.1 },
                         ext: { width: 130, height: 90 }
                     });
                 } catch (e) {
                     console.error('Failed to load image:', e);
-                    row.getCell(9).value = '(โหลดรูปไม่ได้)';
+                    row.getCell(14).value = '(โหลดรูปไม่ได้)';
                 }
             }
         }

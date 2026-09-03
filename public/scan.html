@@ -92,6 +92,48 @@
         </select>
     </div>
 
+    <!-- 5 หัวข้อใหม่ -->
+    <div class="form-group">
+        <label>สภาพอุปกรณ์วัด (Meter):</label>
+        <select id="meter_condition">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ ชำรุด/แจ้งซ่อม">❌ ชำรุด/แจ้งซ่อม</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>หลอดไฟโชว์หน้าตู้คอนโทรล:</label>
+        <select id="indicator_lights">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ หลอดขาด/แจ้งซ่อม">❌ หลอดขาด/แจ้งซ่อม</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>สภาพสายไฟภายในตู้:</label>
+        <select id="internal_wiring">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ ชำรุด/เสื่อมสภาพ">❌ ชำรุด/เสื่อมสภาพ</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>จุดต่อสายไฟ (Terminal/Lug):</label>
+        <select id="wire_connections">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ หลวม/ไหม้">❌ หลวม/ไหม้</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>สภาพทั่วไปบริเวณตู้ควบคุม:</label>
+        <select id="surrounding_area">
+            <option value="✅ ปกติ">✅ ปกติ</option>
+            <option value="❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย">❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย</option>
+        </select>
+    </div>
+
+
     <div class="form-group">
         <label>ความสะอาด:</label>
         <select id="cleanliness">
@@ -291,6 +333,11 @@
                 fan_status: document.getElementById('fan_status').value,
                 general_condition: document.getElementById('general_condition').value,
                 cleanliness: document.getElementById('cleanliness').value,
+                meter_condition: document.getElementById('meter_condition').value,
+                indicator_lights: document.getElementById('indicator_lights').value,
+                internal_wiring: document.getElementById('internal_wiring').value,
+                wire_connections: document.getElementById('wire_connections').value,
+                surrounding_area: document.getElementById('surrounding_area').value,
                 image_url: imageUrl
             }]);
 
