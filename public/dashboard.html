@@ -12,72 +12,109 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* (ดีไซน์ UI CSS) */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; padding: 20px; margin: 0; color: #0f172a; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h1 { margin: 0; color: #1e293b; font-size: 1.5em; }
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --header-shadow: rgba(0,0,0,0.05);
+            --table-hover: #f8fafc;
+            --table-header: #f8fafc;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            --header-shadow: rgba(0,0,0,0.2);
+            --table-hover: #334155;
+            --table-header: #1e293b;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); padding: 20px; margin: 0; color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px var(--header-shadow); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        h1 { margin: 0; color: var(--text-main); font-size: 1.5em; }
         
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { background: #e2e8f0; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; color: #475569; transition: 0.2s; }
-        .tab-btn.active { background: #3b82f6; color: white; }
+        .tab-btn { background: var(--card-bg); border: 1px solid var(--border-color); padding: 12px 24px; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; color: var(--text-muted); transition: 0.2s; }
+        .tab-btn:hover { background: var(--table-hover); }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
         .stats-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #3b82f6; }
+        .stat-card { background: var(--card-bg); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 6px var(--header-shadow); border-left: 5px solid var(--primary); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
         .stat-card.success { border-left-color: #10b981; }
         .stat-card.warn { border-left-color: #f59e0b; }
         .stat-card.danger { border-left-color: #ef4444; }
-        .stat-card h3 { margin: 0; font-size: 0.85em; color: #64748b; text-transform: uppercase; }
-        .stat-card p { margin: 10px 0 0 0; font-size: 1.8em; font-weight: bold; color: #0f172a; }
+        .stat-card h3 { margin: 0; font-size: 0.85em; color: var(--text-muted); text-transform: uppercase; }
+        .stat-card p { margin: 10px 0 0 0; font-size: 1.8em; font-weight: bold; color: var(--text-main); }
         .stat-card.danger p { color: #ef4444; }
         
-        .table-container { max-height: 400px; overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .table-container { max-height: 400px; overflow-y: auto; background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px var(--header-shadow); margin-bottom: 20px; border: 1px solid var(--border-color); }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.95em; }
-        th { background: #f8fafc; color: #475569; font-weight: bold; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 #e2e8f0; }
-        tr:hover { background: #f1f5f9; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.95em; color: var(--text-main); }
+        th { background: var(--table-header); color: var(--text-muted); font-weight: bold; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--border-color); }
+        tr:hover { background: var(--table-hover); }
         
         .thumb { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; cursor: pointer; transition: transform 0.2s; }
         .thumb:hover { transform: scale(1.1); }
         .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
-        .badge-ok { background: #dcfce7; color: #166534; }
-        .badge-warn { background: #fee2e2; color: #991b1b; }
+        .badge-ok { background: rgba(22, 163, 74, 0.15); color: #16a34a; }
+        .badge-warn { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-        .form-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-        .form-card-alt { background: #f8fafc; border: 1px dashed #cbd5e1; }
+        .form-card { background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px var(--header-shadow); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; border: 1px solid var(--border-color); }
+        .form-card-alt { background: var(--table-header); border: 1px dashed var(--border-color); }
         .input-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
-        .input-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #334155; }
-        .input-group input, .input-group select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; }
+        .input-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: var(--text-main); }
+        .input-group input, .input-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; background: var(--bg-color); color: var(--text-main); }
         
         .btn-add { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; height: 40px; }
         .btn-magic { background: #8b5cf6; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; }
-        .btn-magic:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-magic:disabled { background: var(--border-color); cursor: not-allowed; }
         .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
         .btn-clear { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
-        .btn-qr { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-qr { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
         .btn-fix { background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-download { background: #0891b2; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: 4px; }
-        .btn-export { background: #16a34a; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
+        .btn-export { background: #16a34a; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
         .btn-export:hover { background: #15803d; }
-        .export-section { background: white; border: 2px solid #16a34a; border-radius: 12px; padding: 20px; margin-bottom: 25px; }
-
-        .holiday-banner { background: #dbeafe; color: #1e40af; padding: 15px; border-radius: 12px; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid #bfdbfe; display: none; }
+        
+        /* Redesign Export Section */
+        .export-section { background: var(--card-bg); border: 1px solid var(--border-color); box-shadow: 0 4px 6px var(--header-shadow); border-radius: 12px; padding: 20px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+        
+        .holiday-banner { background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 15px; border-radius: 12px; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid rgba(59, 130, 246, 0.2); display: none; }
         .checkbox-group { display: flex; gap: 15px; align-items: center; height: 40px; }
-        .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: normal; margin: 0; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: normal; margin: 0; color: var(--text-main); }
 
         #imgModal, #fixModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         #imgModal img { max-width: 90%; max-height: 90%; border-radius: 12px; }
-        .modal-box { background: white; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; }
-        .modal-box h2 { margin-top: 0; color: #0f172a; }
-        .btn-close { background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .modal-box { background: var(--card-bg); padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; color: var(--text-main); border: 1px solid var(--border-color); }
+        .modal-box h2 { margin-top: 0; color: var(--text-main); }
+        .btn-close { background: var(--border-color); color: var(--text-main); border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
+        
+        /* Toggle Switch for Dark Mode */
+        .theme-toggle { background: transparent; border: 1px solid var(--border-color); border-radius: 20px; padding: 6px 12px; cursor: pointer; font-size: 1.2em; display: flex; align-items: center; gap: 8px; color: var(--text-main); transition: 0.2s; }
+        .theme-toggle:hover { background: var(--bg-color); }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>⚡ แดชบอร์ดระบบตรวจเช็คตู้ไฟออนไลน์</h1>
-    <span style="color: #64748b;">🟢 ระบบกำลังเชื่อมต่อแบบ Real-time</span>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <h1>⚡ แดชบอร์ดระบบตรวจเช็คตู้ไฟออนไลน์</h1>
+        <span style="color: var(--text-muted); font-size: 0.9em; background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 4px 10px; border-radius: 20px; font-weight: bold;">🟢 Real-time</span>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+        🌙
+    </button>
 </div>
 
 <div class="tabs">
@@ -116,10 +153,10 @@
     </div>
 
     <!-- จุดที่ยังไม่ได้ตรวจวันนี้ (โชว์ 5 รายการ เรียงตามอาคาร) -->
-    <div id="pendingScansSection" style="margin: 15px 0 25px 0; padding: 15px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; display: none;">
-        <h3 style="margin-top:0; color:#475569; font-size:1.1em; display:flex; justify-content:space-between; align-items:center;">
+    <div id="pendingScansSection" style="margin: 15px 0 25px 0; padding: 15px 20px; background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px var(--header-shadow); border: 1px solid var(--border-color); display: none;">
+        <h3 style="margin-top:0; color:var(--text-muted); font-size:1em; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
             <span>⏳ จุดที่ยังไม่ได้ตรวจ (วันนี้)</span>
-            <span style="font-size:0.85em; font-weight:normal; background:#f1f5f9; padding:4px 10px; border-radius:20px; color:#64748b; border: 1px solid #e2e8f0;">แสดง 5 จุดแรก</span>
+            <span style="font-size:0.8em; font-weight:normal; background:var(--bg-color); padding:4px 10px; border-radius:20px; color:var(--text-muted); border: 1px solid var(--border-color);">แสดง 5 จุดแรก</span>
         </h3>
         <div id="pendingScansContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
             <!-- แสดงป้ายจุดตกหล่นตรงนี้ -->
@@ -127,25 +164,30 @@
     </div>
 
     <!-- ======================================================= -->
-    <!-- ส่วน Export Excel (เข้าถึงได้โดยไม่ต้องล็อกอินแอดมิน) -->
+    <!-- ส่วน Export Excel (ดีไซน์ใหม่) -->
     <!-- ======================================================= -->
-    <h2 style="margin-top:5px;">📥 Export ข้อมูลการตรวจ (Excel)</h2>
     <div class="export-section">
-        <p style="color:#475569; margin-top:0; margin-bottom:15px; font-size:0.95em;">
-            เลือกช่วงวันที่แล้วกดโหลด → ได้ไฟล์ <b>.xlsx</b> แยกตามวัน (หลายวันรวมเป็น <b>.zip</b>)
-        </p>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันเริ่มต้น</label>
-                <input type="date" id="exportStartDate">
-            </div>
-            <div class="input-group" style="flex:1; min-width:150px;">
-                <label>วันสิ้นสุด <span style="font-weight:normal; color:#94a3b8;">(ไม่เลือก = วันเดียว)</span></label>
-                <input type="date" id="exportEndDate">
-            </div>
-            <button class="btn-export" onclick="exportExcel()">📥 โหลด Excel</button>
+        <div>
+            <h2 style="margin:0 0 5px 0; font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.3em;">📥</span> Export ข้อมูลการตรวจ (Excel)
+            </h2>
+            <p style="color:var(--text-muted); margin:0; font-size:0.9em;">
+                เลือกช่วงวันที่แล้วกดโหลด → ไฟล์ .xlsx แยกตามวัน (หลายวันรวมเป็น .zip)
+            </p>
+            <p id="exportStatus" style="margin:5px 0 0 0; font-size:0.85em; color:#16a34a; display:none;"></p>
         </div>
-        <p id="exportStatus" style="margin:10px 0 0 0; font-size:0.9em; color:#16a34a; display:none;"></p>
+        
+        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <div class="input-group" style="min-width:130px;">
+                <label style="font-size:0.85em; color:var(--text-muted);">เริ่มจาก</label>
+                <input type="date" id="exportStartDate" style="padding:8px;">
+            </div>
+            <div class="input-group" style="min-width:130px;">
+                <label style="font-size:0.85em; color:var(--text-muted);">ถึงวันที่ (ตัวเลือก)</label>
+                <input type="date" id="exportEndDate" style="padding:8px;">
+            </div>
+            <button class="btn-export" onclick="exportExcel()">ดาวน์โหลด</button>
+        </div>
     </div>
 
     <!-- ตารางประวัติการตรวจเช็ค -->
@@ -535,6 +577,26 @@
     let scansData = [];     // เก็บประวัติการสแกนทั้งหมด
     let holidaysData = [];  // เก็บรายการวันหยุด
     let currentFixPoint = ""; // เอาไว้พักรหัสตู้ชั่วคราว ตอนกดปุ่มจัดการจุดตกหล่น
+    
+    // ----------------------------------------------------------------------
+    // 📌 ระบบ Theme (Dark/Light Mode)
+    // ----------------------------------------------------------------------
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('themeBtn').innerText = '☀️';
+        }
+    }
+    
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        document.getElementById('themeBtn').innerText = newTheme === 'dark' ? '☀️' : '🌙';
+    }
+    initTheme();
 
     // ----------------------------------------------------------------------
     // 📌 ฟังก์ชันสลับหน้าต่าง (Tabs) และ ระบบตรวจสอบรหัสผ่านผ่านหลังบ้าน (Secure)
@@ -797,16 +859,16 @@
                 const tooltip = `รหัสตู้: ${qr.checkpoint}\nอาคาร: ${locStr}${floorStr}`;
                 
                 pendingContainer.innerHTML += `
-                    <div title="${tooltip}" style="background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:8px 14px; font-size:0.95em; cursor:help; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition:all 0.2s;">
-                        <b style="color:#1e293b;">${qr.checkpoint}</b> 
-                        <span style="color:#64748b; font-size:0.85em; margin-left:6px;">(${locStr})</span>
+                    <div title="${tooltip}" style="background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); padding:8px 14px; font-size:0.95em; cursor:help; border-radius:8px; box-shadow:0 1px 2px var(--header-shadow); transition:all 0.2s;">
+                        <b style="color:var(--text-main);">${qr.checkpoint}</b> 
+                        <span style="color:var(--text-muted); font-size:0.85em; margin-left:6px;">(${locStr})</span>
                     </div>
                 `;
             });
             
             if (pendingToday.length > 5) {
                 pendingContainer.innerHTML += `
-                    <div style="padding:8px 10px; font-size:0.9em; color:#94a3b8; align-self:center;">
+                    <div style="padding:8px 10px; font-size:0.9em; color:var(--text-muted); align-self:center;">
                         ... และอีก ${pendingToday.length - 5} จุด
                     </div>
                 `;
