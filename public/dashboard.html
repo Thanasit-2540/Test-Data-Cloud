@@ -75,6 +75,7 @@
         .input-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
         .input-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: var(--text-main); }
         .input-group input, .input-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; background: var(--bg-color); color: var(--text-main); }
+        .input-group input[type="date"] { background: #ffffff; color: #0f172a; color-scheme: light; }
         
         .btn-add { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; height: 40px; }
         .btn-magic { background: #8b5cf6; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; }
@@ -657,8 +658,13 @@
 
         // สมัครรับข้อมูล Realtime เวลามีคนสแกนเข้ามาใหม่ ตารางจะรีเฟรชเอง
         dbClient.channel('custom-all-channel')
-            .on('postgres_changes', { event: '*', schema: 'public' }, () => loadCoreData())
-            .subscribe();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'scans' }, (payload) => {
+                console.log("⚡ มีข้อมูลเข้าใหม่ (Realtime Triggered!):", payload);
+                loadCoreData();
+            })
+            .subscribe((status) => {
+                console.log("📡 สถานะ Realtime:", status);
+            });
     }
 
     // ----------------------------------------------------------------------
