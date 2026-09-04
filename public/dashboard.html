@@ -138,7 +138,7 @@
     </div>
 
     <!-- ตารางประวัติการตรวจเช็ค -->
-    <h2 style="margin-top:25px;">📋 ข้อมูลที่ตรวจแล้ว (5 รายการล่าสุด)</h2>
+    <h2 style="margin-top:25px;">📋 ข้อมูลที่ตรวจแล้ว (วันนี้)</h2>
     <div class="table-container" style="max-height: 600px;">
         <table>
             <thead>
@@ -681,15 +681,9 @@
         tbody.innerHTML = '';
         if (scansData.length === 0) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">ยังไม่มีประวัติการตรวจเช็ค</td></tr>';
 
-        let renderCount = 0; // ตัวนับจำนวนแถวที่แสดง
-
-        // วนลูปประวัติเพื่อคำนวณสถิติและวาดตาราง (แต่จะวาดแค่ 5 แถวแรก)
+        // ====== คำนวณสถิติรายวันก่อน (วนครบทุกรายการ) ======
         scansData.forEach(item => {
-            const itemDateObj = new Date(item.created_at);
-            const itemDateStr = itemDateObj.toLocaleDateString('th-TH');
-            const timeStr = itemDateObj.toLocaleString('th-TH');
-            
-            // เช็คว่าตู้นี้มีอาการป่วย (ปัญหา) หรือไม่?
+            const itemDateStr = new Date(item.created_at).toLocaleDateString('th-TH');
             const hasIssue = !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
                              !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
                              !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-') ||
@@ -698,17 +692,26 @@
                              !(item.internal_wiring||'ปกติ').includes('ปกติ') ||
                              !(item.wire_connections||'ปกติ').includes('ปกติ') ||
                              !(item.surrounding_area||'ปกติ').includes('ปกติ');
-
-            // เก็บสถิติรายวัน (ทำครบทุกรายการ)
             if (itemDateStr === todayStr) { checkedToday.add(item.checkpoint_name); if (hasIssue) issuesTodayCount++; }
             if (itemDateStr === yesterdayStr) { checkedYesterday.add(item.checkpoint_name); }
+        });
 
-            // วาดตารางเฉพาะ 5 รายการล่าสุด
-            if (renderCount < 5) {
-                // ทำป้ายสี Badge ปกติ=สีเขียว / ชำรุด=สีแดง
-                const getBadge = (text) => text.includes('ปกติ') || text.includes('สะอาด') ? `<span class="badge badge-ok">${text}</span>` : `<span class="badge badge-warn">${text}</span>`;
-                
-                // ถ้าแอดมินคีย์ให้ว่า "ละเว้นการตรวจ"
+        // ====== กรองเฉพาะข้อมูลของวันนี้ ======
+        const todayKey = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const todayItems = scansData.filter(item => {
+            const d = new Date(item.created_at);
+            return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0] === todayKey;
+        });
+
+        const getBadge = (text) => (text.includes('ปกติ') || text.includes('สะอาด'))
+            ? `<span class="badge badge-ok">${text}</span>`
+            : `<span class="badge badge-warn">${text}</span>`;
+
+        if (todayItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:20px; color:#64748b;">📭 วันนี้ยังไม่มีการตรวจเช็ค</td></tr>';
+        } else {
+            todayItems.forEach(item => {
+                const timeStr = new Date(item.created_at).toLocaleString('th-TH');
                 const isExempt = (item.inspector_name || '').includes('ละเว้น');
                 const condDisplay = isExempt ? `<span class="badge badge-warn">${item.general_condition}</span>` : getBadge(item.general_condition || '-');
 
@@ -730,13 +733,7 @@
                         <td><img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')"></td>
                     </tr>
                 `;
-                renderCount++;
-            }
-        });
-
-        // ถ้ามีข้อมูลมากกว่า 5 รายการ ให้เพิ่มแถวบอกว่ามีอีกนะแต่ซ่อนไว้
-        if (scansData.length > 5) {
-            tbody.innerHTML += `<tr><td colspan="14" style="text-align:center; color:#64748b; padding:15px;">...ยังมีข้อมูลเก่ากว่านี้อีก (กรุณาโหลด Excel เพื่อดูทั้งหมด)...</td></tr>`;
+            });
         }
 
         // อัปเดตตัวเลข 4 กล่องสถิติ
@@ -1199,54 +1196,93 @@
     // ใช้ Canvas API วาด QR Code + ชื่อจุดตรวจ + อาคาร + ชั้น/โซน
     // ----------------------------------------------------------------------
     function downloadQRCode(checkpoint, location, location1) {
-        const scanUrl   = window.location.origin + `/scan.html?point=${encodeURIComponent(checkpoint)}`;
-        const qrApiUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
-        const padding   = 20;
-        const qrSize    = 300;
-        const lineH     = 24;
-        const lines     = [checkpoint, location, location1].filter(t => t && t.trim() !== '');
-        const textH     = lines.length * lineH + padding * 2;
-        const canvas    = document.createElement('canvas');
-        canvas.width    = qrSize + padding * 2;
-        canvas.height   = qrSize + textH + padding;
-        const ctx = canvas.getContext('2d');
+        const scanUrl  = window.location.origin + `/scan.html?point=${encodeURIComponent(checkpoint)}`;
+        const qrSize   = 200;   // ขนาด QR Code
+        const padding  = 24;
+        const lineH    = 32;    // ความสูงบรรทัดหลัก (ไทย)
+        const subLineH = 26;    // ความสูงบรรทัดรอง (พม่า)
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(scanUrl)}`;
+
+        // คำแปลภาษาพม่า (กึ่งทางการ/ชาวบ้านทั่วไป)
+        // "မီးဘူးစစ်ဆေးသောနေရာ" = จุดตรวจตู้ไฟฟ้า (กึ่งทางการ)
+        // "အဆောက်အဦး" = อาคาร/ตึก (ทางการ ใช้ทั่วไป ออกเสียง "อะเส่าเอา")
+        // "နေရာ" = สถานที่ (ทั่วไป)
+        const myanLine1 = `မီးဘူးစစ်ဆေးသောနေရာ  ${checkpoint}`;
+        const myanLine2 = location  && location.trim()  ? `အဆောက်အဦး  ${location}`  : null;
+        const myanLine3 = location1 && location1.trim() ? `နေရာ  ${location1}` : null;
+
+        // คำนวณความสูง Canvas ให้พอดีกับทุกบรรทัด
+        // แต่ละหัวข้อมี 2 บรรทัด (ไทย+พม่า) + ระยะห่างเล็กน้อยระหว่างหัวข้อ
+        const blockH  = lineH + subLineH + 8;  // ความสูงต่อ 1 หัวข้อ
+        let numBlocks = 1;
+        if (myanLine2) numBlocks++;
+        if (myanLine3) numBlocks++;
+
+        const canvasW = 380;                                       // กว้างขึ้นรองรับข้อความ 2 ภาษา
+        const textH   = numBlocks * blockH + padding;
+        const canvasH = padding + qrSize + padding + textH;
+
+        const canvas  = document.createElement('canvas');
+        canvas.width  = canvasW;
+        canvas.height = canvasH;
+        const ctx     = canvas.getContext('2d');
 
         // พื้นหลังสีขาว
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvasW, canvasH);
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = function () {
-            // วาด QR Code
-            ctx.drawImage(img, padding, padding, qrSize, qrSize);
+            // วาด QR Code (กึ่งกลางแนวนอน)
+            const qrX = (canvasW - qrSize) / 2;
+            ctx.drawImage(img, qrX, padding, qrSize, qrSize);
 
             // เส้นคั่น
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1;
+            const dividerY = padding + qrSize + 14;
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(padding, qrSize + padding + 8);
-            ctx.lineTo(canvas.width - padding, qrSize + padding + 8);
+            ctx.moveTo(padding, dividerY);
+            ctx.lineTo(canvasW - padding, dividerY);
             ctx.stroke();
 
-            // ชื่อจุดตรวจ (ตัวหนา ใหญ่)
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#1e293b';
-            ctx.font = 'bold 18px Arial, sans-serif';
-            ctx.fillText(checkpoint, canvas.width / 2, qrSize + padding + lineH + 10);
+            ctx.textAlign = 'left';
+            let y = dividerY + lineH * 0.9;
 
-            // อาคาร (Location)
-            if (location && location.trim()) {
-                ctx.font = '14px Arial, sans-serif';
-                ctx.fillStyle = '#475569';
-                ctx.fillText(location, canvas.width / 2, qrSize + padding + lineH * 2 + 10);
+            // ===== บรรทัดที่ 1: จุดตรวจตู้ไฟฟ้า =====
+            // ภาษาไทย (ตัวหนา)
+            ctx.font = 'bold 20px Arial, sans-serif';
+            ctx.fillStyle = '#0f172a';
+            ctx.fillText(`จุดตรวจตู้ไฟฟ้า  ${checkpoint}`, padding, y);
+            y += lineH;
+            // ภาษาพม่า (เล็กกว่า สีเทา)
+            ctx.font = '16px "Pyidaungsu", "Myanmar Text", Arial, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(myanLine1, padding + 8, y);
+            y += subLineH + 10; // ระยะห่างระหว่างหัวข้อ
+
+            // ===== บรรทัดที่ 2: อาคาร =====
+            if (myanLine2) {
+                ctx.font = 'bold 18px Arial, sans-serif';
+                ctx.fillStyle = '#1e293b';
+                ctx.fillText(`อาคาร  ${location}`, padding, y);
+                y += lineH;
+                ctx.font = '15px "Pyidaungsu", "Myanmar Text", Arial, sans-serif';
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(myanLine2, padding + 8, y);
+                y += subLineH + 10;
             }
 
-            // ชั้น/โซน (Location1)
-            if (location1 && location1.trim()) {
-                ctx.font = '14px Arial, sans-serif';
+            // ===== บรรทัดที่ 3: สถานที่ =====
+            if (myanLine3) {
+                ctx.font = '17px Arial, sans-serif';
+                ctx.fillStyle = '#334155';
+                ctx.fillText(`สถานที่  ${location1}`, padding, y);
+                y += lineH;
+                ctx.font = '14px "Pyidaungsu", "Myanmar Text", Arial, sans-serif';
                 ctx.fillStyle = '#64748b';
-                ctx.fillText(location1, canvas.width / 2, qrSize + padding + lineH * 3 + 10);
+                ctx.fillText(myanLine3, padding + 8, y);
             }
 
             // ดาวน์โหลด

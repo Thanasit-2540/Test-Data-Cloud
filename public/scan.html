@@ -15,6 +15,8 @@
         .checkpoint-display { background: #eff6ff; color: #2563eb; padding: 15px; border-radius: 8px; text-align: center; font-size: 1.4em; font-weight: bold; margin-bottom: 25px; border: 1px dashed #bfdbfe; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #475569; }
+        /* ข้อความภาษาพม่าใต้ label */
+        .mm { display: block; font-size: 0.82em; color: #94a3b8; font-weight: normal; margin-top: 2px; font-family: "Pyidaungsu", "Myanmar Text", sans-serif; }
         input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1em; font-family: inherit; }
         .input-row { display: flex; gap: 10px; }
         .input-row input { text-align: center; font-weight: bold; color: #2563eb; }
@@ -31,7 +33,7 @@
 <body>
 
 <div class="container">
-    <h2>⚡ บันทึกการตรวจเช็คตู้ไฟ</h2>
+    <h2>⚡ บันทึกการตรวจเช็คตู้ไฟ<br><span style="font-size:0.65em; color:#64748b; font-family:'Pyidaungsu','Myanmar Text',sans-serif; font-weight:normal;">မီးဘူးစစ်ဆေးမှတ်တမ်းတင်ရန်</span></h2>
     <div class="checkpoint-display" id="checkpointDisplay">โหลดข้อมูล...</div>
 
     <!-- หน้าจอบังคับเปิด Chrome (แสดงเฉพาะเมื่อเปิดผ่าน LINE) -->
@@ -54,12 +56,12 @@
     <!-- ฟอร์มหลัก (จะถูกซ่อนถ้าเปิดผ่าน LINE) -->
     <div id="mainForm">
     <div class="form-group">
-        <label>ชื่อผู้ตรวจสอบ:</label>
-        <input type="text" id="inspector_name" placeholder="ระบุชื่อของคุณ">
+        <label>ชื่อผู้ตรวจสอบ: <span class="mm">စစ်ဆေးသူအမည်</span></label>
+        <input type="text" id="inspector_name" placeholder="ระบุชื่อของคุณ / အမည်ရေးပါ">
     </div>
 
     <div class="form-group">
-        <label>แรงดันไฟฟ้า (V) - L1 / L2 / L3:</label>
+        <label>แรงดันไฟฟ้า (V) - L1 / L2 / L3: <span class="mm">လျှပ်စစ်ဗို့အား (V)</span></label>
         <div class="input-row">
             <input type="number" id="v1" placeholder="L1">
             <input type="number" id="v2" placeholder="L2">
@@ -68,7 +70,7 @@
     </div>
 
     <div class="form-group">
-        <label>กระแสไฟฟ้า (A) - L1 / L2 / L3:</label>
+        <label>กระแสไฟฟ้า (A) - L1 / L2 / L3: <span class="mm">လျှပ်စစ်စီးကြောင်း (A)</span></label>
         <div class="input-row">
             <input type="number" id="a1" placeholder="L1">
             <input type="number" id="a2" placeholder="L2">
@@ -77,78 +79,81 @@
     </div>
 
     <div class="form-group">
-        <label>พัดลมระบายอากาศ:</label>
+        <label>พัดลมระบายอากาศ: <span class="mm">လေပြန်ပန်ကာ အခြေအနေ</span></label>
         <select id="fan_status">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ ชำรุด/ไม่หมุน">❌ ชำรุด/ไม่หมุน</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ ชำรุด/ไม่หมุน">❌ ชำรุด/ไม่หมุน / ပျက်သည်/မလည်</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>สภาพตู้โดยรวม:</label>
+        <label>สภาพตู้โดยรวม: <span class="mm">မီးဘူး အထွေထွေအခြေအနေ</span></label>
         <select id="general_condition">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ ชำรุด/มีรอยไหม้">❌ ชำรุด/มีรอยไหม้</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ ชำรุด/มีรอยไหม้">❌ ชำรุด/มีรอยไหม้ / ပျက်/မီးလောင်ရာရှိ</option>
         </select>
     </div>
 
     <!-- 5 หัวข้อใหม่ -->
     <div class="form-group">
-        <label>สภาพอุปกรณ์วัด (Meter):</label>
+        <label>สภาพอุปกรณ์วัด (Meter): <span class="mm">တိုင်းတာကိရိယာ အခြေအနေ</span></label>
         <select id="meter_condition">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ ชำรุด/แจ้งซ่อม">❌ ชำรุด/แจ้งซ่อม</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ ชำรุด/แจ้งซ่อม">❌ ชำรุด/แจ้งซ่อม / ပျက်/ပြင်ဆင်ရန်</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>หลอดไฟโชว์หน้าตู้คอนโทรล:</label>
+        <label>หลอดไฟโชว์หน้าตู้คอนโทรล: <span class="mm">မီးညွှန်ဘောင်ဘောင် အခြေအနေ</span></label>
         <select id="indicator_lights">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ หลอดขาด/แจ้งซ่อม">❌ หลอดขาด/แจ้งซ่อม</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ หลอดขาด/แจ้งซ่อม">❌ หลอดขาด/แจ้งซ่อม / မီးမလင်း/ပြင်ဆင်ရန်</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>สภาพสายไฟภายในตู้:</label>
+        <label>สภาพสายไฟภายในตู้: <span class="mm">ဘူးထဲ ကြိုး အခြေအနေ</span></label>
         <select id="internal_wiring">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ ชำรุด/เสื่อมสภาพ">❌ ชำรุด/เสื่อมสภาพ</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ ชำรุด/เสื่อมสภาพ">❌ ชำรุด/เสื่อมสภาพ / ပျက်/အဟောင်းဖြစ်</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>จุดต่อสายไฟ (Terminal/Lug):</label>
+        <label>จุดต่อสายไฟ (Terminal/Lug): <span class="mm">ကြိုးချိတ်ဆက်ရာနေရာ အခြေအနေ</span></label>
         <select id="wire_connections">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ หลวม/ไหม้">❌ หลวม/ไหม้</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ หลวม/ไหม้">❌ หลวม/ไหม้ / လျော့/မီးလောင်</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>สภาพทั่วไปบริเวณตู้ควบคุม:</label>
+        <label>สภาพทั่วไปบริเวณตู้ควบคุม: <span class="mm">ထိန်းချုပ်ဘူးပတ်ဝန်းကျင် အခြေအနေ</span></label>
         <select id="surrounding_area">
-            <option value="✅ ปกติ">✅ ปกติ</option>
-            <option value="❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย">❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย</option>
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ มีสิ่งกีดขวาง/ไม่ปลอดภัย">❌ มีสิ่งกีดขวาง / အတားအဆီးရှိ/မလုံခြုံ</option>
         </select>
     </div>
 
-
     <div class="form-group">
-        <label>ความสะอาด:</label>
+        <label>ความสะอาด: <span class="mm">သန့်ရှင်းရေး အခြေအနေ</span></label>
         <select id="cleanliness">
-            <option value="✅ สะอาด">✅ สะอาด</option>
-            <option value="⚠️ มีฝุ่น/หยากไย่">⚠️ มีฝุ่น/หยากไย่</option>
+            <option value="✅ สะอาด">✅ สะอาด / သန့်သည်</option>
+            <option value="⚠️ มีฝุ่น/หยากไย่">⚠️ มีฝุ่น/หยากไย่ / ဖုန်/ပိုးကောင်ရှိ</option>
         </select>
     </div>
 
     <label class="btn-camera">
-        📸 ถ่ายรูปตู้ไฟหน้างาน
+        📸 ถ่ายรูปตู้ไฟหน้างาน<br>
+        <span style="font-size:0.8em; font-family:'Pyidaungsu','Myanmar Text',sans-serif; font-weight:normal;">မီးဘူးဓာတ်ပုံရိုက်ပါ</span>
         <input type="file" id="fileInput" accept="image/*" capture="environment">
     </label>
     <img id="preview" alt="ภาพตัวอย่าง">
 
-    <button id="btnSubmit" class="btn-submit" onclick="submitForm()">💾 บันทึกผลการตรวจสอบ</button>
+    <button id="btnSubmit" class="btn-submit" onclick="submitForm()">
+        💾 บันทึกผลการตรวจสอบ<br>
+        <span style="font-size:0.75em; font-family:'Pyidaungsu','Myanmar Text',sans-serif; font-weight:normal;">စစ်ဆေးမှတ်တမ်းသိမ်းရန်</span>
+    </button>
     <div id="status"></div>
     </div>
 </div>
