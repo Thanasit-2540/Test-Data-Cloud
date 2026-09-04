@@ -39,17 +39,31 @@
     <!-- หน้าจอบังคับเปิด Chrome (แสดงเฉพาะเมื่อเปิดผ่าน LINE) -->
     <div id="lineBanner" style="display:none; text-align:center; padding: 10px 0;">
         <div style="font-size: 4em; margin-bottom: 15px;">📱</div>
-        <h3 style="color:#1e293b; margin-bottom:10px;">กรุณาเปิดใน Chrome</h3>
+        <h3 style="color:#1e293b; margin-bottom:10px;">กรุณาเปิดในเบราว์เซอร์</h3>
         <p style="color:#64748b; font-size:0.95em; line-height:1.6; margin-bottom:25px;">
             ระบบนี้ต้องการเปิดกล้องถ่ายรูปโดยตรง<br>
-            ซึ่ง LINE Browser ไม่รองรับครับ<br>
-            กรุณากดปุ่มด้านล่างเพื่อเปิดใน Chrome
+            ซึ่ง LINE Browser ไม่รองรับครับ
         </p>
-        <button onclick="openInChrome()" style="background:#06c755; color:white; border:none; padding:15px 35px; border-radius:10px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow: 0 4px 15px rgba(6,199,85,0.4);">
+
+        <button id="btnOpenBrowser" onclick="openInChrome()" style="background:#06c755; color:white; border:none; padding:15px 35px; border-radius:10px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow: 0 4px 15px rgba(6,199,85,0.4); margin-bottom:15px;">
             🌐 เปิดใน Chrome
         </button>
-        <p style="color:#94a3b8; font-size:0.8em; margin-top:20px;">
-            💡 หรือกดปุ่ม <strong>"..."</strong> มุมขวาบนของ LINE<br>แล้วเลือก "เปิดในเบราว์เซอร์" ก็ได้ครับ
+
+        <!-- ปุ่ม Copy URL (iOS fallback - ซ่อนไว้ก่อน) -->
+        <button id="copyUrlBtn" style="display:none; background:#3b82f6; color:white; border:none; padding:12px 30px; border-radius:10px; font-weight:bold; font-size:1em; cursor:pointer; margin-bottom:15px;">
+            📋 คัดลอก URL เปิดใน Safari
+        </button>
+
+        <!-- คำแนะนำสำหรับ Android -->
+        <p id="androidHint" style="color:#94a3b8; font-size:0.8em; margin-top:10px;">
+            💡 หรือกดปุ่ม <strong>"..."</strong> มุมขวาบนของ LINE<br>แล้วเลือก "เปิดในเบราว์เซอร์ภายนอก"
+        </p>
+
+        <!-- คำแนะนำสำหรับ iOS (ซ่อนไว้ก่อน) -->
+        <p id="iosHint" style="display:none; color:#94a3b8; font-size:0.8em; margin-top:10px;">
+            💡 กดปุ่ม <strong>"..."</strong> มุมขวาบนของ LINE<br>
+            แล้วเลือก <strong>"เปิดในเบราว์เซอร์"</strong><br>
+            หรือกด <strong>"คัดลอกลิงก์"</strong> แล้วเปิด Safari วางลิงก์ครับ
         </p>
     </div>
 
@@ -176,21 +190,55 @@
     // ถ้าเปิดผ่าน LINE → ซ่อนฟอร์มทั้งหมด และแสดงหน้าบังคับให้ไปเปิด Chrome แทน
     // ----------------------------------------------------------------------
     const isLineBrowser = /Line\//i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     if (isLineBrowser) {
         document.getElementById('lineBanner').style.display = 'block'; // โชว์หน้าบังคับ
         document.getElementById('mainForm').style.display = 'none';    // ซ่อนฟอร์มทั้งหมด
+
+        // ปรับข้อความปุ่มตามอุปกรณ์
+        if (isIOS) {
+            document.getElementById('btnOpenBrowser').textContent = '🌐 เปิดใน Safari';
+            document.getElementById('iosHint').style.display = 'block';
+            document.getElementById('androidHint').style.display = 'none';
+        }
     }
 
-    // ฟังก์ชันสำหรับพาผู้ใช้ออกจาก LINE ไปเปิดใน Chrome
+    // ฟังก์ชันสำหรับพาผู้ใช้ออกจาก LINE ไปเปิดใน Browser
     function openInChrome() {
         const currentUrl = window.location.href;
-        // intent:// scheme สำหรับ Android บังคับให้เปิดใน Chrome
-        const intentUrl = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-        window.location.href = intentUrl;
-        // fallback สำหรับ iOS หรือ Chrome ไม่ได้ติดตั้ง
-        setTimeout(() => {
-            alert(`📋 กรุณาคัดลอก URL นี้ไปวางในแอป Chrome ครับ:\n\n${currentUrl}`);
-        }, 1500);
+
+        if (isIOS) {
+            // iOS: ใช้ window.location เปลี่ยนไปเปิดใน Safari โดยตรง (ไม่มี intent://)
+            // วิธีที่ได้ผลที่สุดบน iOS LINE คือเปลี่ยน protocol จาก https → googlechrome
+            const chromeUrl = currentUrl.replace(/^https:\/\//, 'googlechromes://').replace(/^http:\/\//, 'googlechrome://');
+            window.location.href = chromeUrl;
+
+            // Fallback: ถ้า Chrome ไม่ได้ติดตั้ง ให้เปิด Safari
+            setTimeout(() => {
+                // แสดงปุ่ม Copy URL แทน
+                const copyBtn = document.getElementById('copyUrlBtn');
+                if (copyBtn) {
+                    copyBtn.style.display = 'block';
+                    copyBtn.onclick = () => {
+                        navigator.clipboard.writeText(currentUrl).then(() => {
+                            alert('✅ คัดลอก URL แล้ว! กรุณาเปิด Safari แล้ววางลิงก์ครับ');
+                        }).catch(() => {
+                            prompt('คัดลอก URL นี้ไปวางใน Safari:', currentUrl);
+                        });
+                    };
+                }
+            }, 1000);
+        } else {
+            // Android: ใช้ intent:// scheme บังคับเปิด Chrome
+            const intentUrl = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+            window.location.href = intentUrl;
+
+            // Fallback กรณี Chrome ไม่ได้ติดตั้ง
+            setTimeout(() => {
+                prompt('คัดลอก URL นี้ไปวางใน Chrome:', currentUrl);
+            }, 1500);
+        }
     }
 
     // ----------------------------------------------------------------------

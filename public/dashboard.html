@@ -115,6 +115,17 @@
         </div>
     </div>
 
+    <!-- จุดที่ยังไม่ได้ตรวจวันนี้ (โชว์ 5 รายการ เรียงตามอาคาร) -->
+    <div id="pendingScansSection" style="margin: 15px 0 25px 0; padding: 15px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; display: none;">
+        <h3 style="margin-top:0; color:#475569; font-size:1.1em; display:flex; justify-content:space-between; align-items:center;">
+            <span>⏳ จุดที่ยังไม่ได้ตรวจ (วันนี้)</span>
+            <span style="font-size:0.85em; font-weight:normal; background:#f1f5f9; padding:4px 10px; border-radius:20px; color:#64748b; border: 1px solid #e2e8f0;">แสดง 5 จุดแรก</span>
+        </h3>
+        <div id="pendingScansContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+            <!-- แสดงป้ายจุดตกหล่นตรงนี้ -->
+        </div>
+    </div>
+
     <!-- ======================================================= -->
     <!-- ส่วน Export Excel (เข้าถึงได้โดยไม่ต้องล็อกอินแอดมิน) -->
     <!-- ======================================================= -->
@@ -754,6 +765,52 @@
             });
             document.getElementById('stat-missed-yesterday').innerText = unresolvedMissedCount;
             document.getElementById('stat-missed-yesterday').style.color = '';
+        }
+
+        // ==========================================
+        // 📌 จุดที่ยังไม่ได้ตรวจสำหรับ "วันนี้"
+        // ==========================================
+        const pendingSection = document.getElementById('pendingScansSection');
+        const pendingContainer = document.getElementById('pendingScansContainer');
+        
+        let pendingToday = allQRs.filter(qr => !checkedToday.has(qr.checkpoint));
+        
+        // เรียงลำดับตามอาคาร (เช่น อาคาร 1 -> อาคาร 2 -> อาคาร 3)
+        pendingToday.sort((a, b) => {
+            const locA = a.Location || '';
+            const locB = b.Location || '';
+            return locA.localeCompare(locB);
+        });
+
+        pendingContainer.innerHTML = '';
+        pendingSection.style.display = 'block';
+
+        if (pendingToday.length === 0) {
+            // ตรวจครบแล้ว
+            pendingContainer.innerHTML = '<span style="color:#10b981; font-weight:bold; font-size:1.1em;">🎉 ยอดเยี่ยม! ตรวจครบทุกจุดสำหรับวันนี้แล้วครับ</span>';
+        } else {
+            // ดึงมาแค่ 5 จุดแรก
+            const top5 = pendingToday.slice(0, 5);
+            top5.forEach(qr => {
+                const locStr = qr.Location || 'ไม่ระบุอาคาร';
+                const floorStr = qr.Location1 ? `\nสถานที่: ${qr.Location1}` : '';
+                const tooltip = `รหัสตู้: ${qr.checkpoint}\nอาคาร: ${locStr}${floorStr}`;
+                
+                pendingContainer.innerHTML += `
+                    <div title="${tooltip}" style="background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:8px 14px; font-size:0.95em; cursor:help; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition:all 0.2s;">
+                        <b style="color:#1e293b;">${qr.checkpoint}</b> 
+                        <span style="color:#64748b; font-size:0.85em; margin-left:6px;">(${locStr})</span>
+                    </div>
+                `;
+            });
+            
+            if (pendingToday.length > 5) {
+                pendingContainer.innerHTML += `
+                    <div style="padding:8px 10px; font-size:0.9em; color:#94a3b8; align-self:center;">
+                        ... และอีก ${pendingToday.length - 5} จุด
+                    </div>
+                `;
+            }
         }
     }
 
