@@ -310,16 +310,16 @@
 
             <!-- ================= ระบบกวาดล้างข้อมูลเก่า 70 วัน ================= -->
             <h2 style="margin-top: 30px;">🧹 บำรุงรักษาระบบ (คืนพื้นที่)</h2>
-            <div class="form-card form-card-alt" style="border-color: #ef4444; background: #fef2f2;">
+            <div class="form-card form-card-alt" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
                 <div class="input-group">
-                    <label style="color: #b91c1c;">ลบประวัติการสแกนและรูปภาพ (อายุเกิน 70 วัน)</label>
-                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #7f1d1d;">
+                    <label style="color: #ef4444;">ลบประวัติการสแกนและรูปภาพ (อายุเกิน 70 วัน)</label>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: var(--text-muted);">
                         ตรวจพบข้อมูลเก่าเกินกำหนด: <strong id="oldDataCount" style="font-size: 1.2em; color: #ef4444;">0</strong> รายการ
                     </p>
                 </div>
                 <button class="btn-delete" style="padding: 10px 15px; font-size:1em;" onclick="cleanupOldData()">🗑️ กดล้างข้อมูลเก่า</button>
             </div>
-            <p style="font-size: 0.8em; color: #64748b; margin-top: -10px;">
+            <p style="font-size: 0.8em; color: var(--text-muted); margin-top: -10px;">
                 * หมายเหตุ: ระบบมีกลไก <b>Auto-Delete</b> หากมีข้อมูลที่อายุเกิน 100 วัน ระบบจะแอบลบทิ้งให้อัตโนมัติทันทีที่คุณเปิดหน้าเว็บนี้ เพื่อป้องกันพื้นที่เต็ม
             </p>
         </div>
@@ -344,9 +344,9 @@
             </div>
 
             <!-- ระบบแก้ไขข้อมูลย้อนหลังเฉพาะจุด -->
-            <div style="margin-top: 25px; padding: 25px; background: #faf5ff; border: 2px dashed #8b5cf6; border-radius: 12px; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.1);">
+            <div style="margin-top: 25px; padding: 25px; background: rgba(139, 92, 246, 0.05); border: 2px dashed #8b5cf6; border-radius: 12px; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.1);">
                 <h2 style="color: #8b5cf6; margin-top: 0;">🛠️ แก้ไข/เพิ่มข้อมูลย้อนหลัง</h2>
-                <p style="color: #64748b; margin-top: -10px; margin-bottom: 20px; font-size: 0.9em;">* ระบบจะลบประวัติเก่าและเขียนทับด้วยข้อมูลใหม่ทันที</p>
+                <p style="color: var(--text-muted); margin-top: -10px; margin-bottom: 20px; font-size: 0.9em;">* ระบบจะลบประวัติเก่าและเขียนทับด้วยข้อมูลใหม่ทันที</p>
                 
                 <div class="input-group" style="margin-bottom: 15px;">
                     <label>1. เลือกวันที่ย้อนหลัง</label>
@@ -370,10 +370,10 @@
                     </div>
                 </div>
 
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="background: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                     <div class="input-group" style="margin-bottom: 10px;">
                         <label>ชื่อผู้ตรวจสอบ</label>
-                        <input type="text" id="retroInspector" value="แอดมิน (แก้ไขย้อนหลัง)" style="background: #f1f5f9; color: #475569;" readonly>
+                        <input type="text" id="retroInspector" value="แอดมิน (แก้ไขย้อนหลัง)" style="background: var(--card-bg); color: var(--text-muted);" readonly>
                     </div>
 
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
