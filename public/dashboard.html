@@ -201,7 +201,6 @@
                     <th>วัน-เวลาบันทึก</th>
                     <th>ผู้ตรวจสอบ</th>
                     <th>แรงดัน (V)</th>
-                    <th>กระแส (A)</th>
                     <th>พัดลม</th>
                     <th>สภาพตู้</th>
                     <th>ความสะอาด</th>
@@ -309,6 +308,26 @@
                 </table>
             </div>
 
+            <!-- ================= ระบบจัดการรายชื่อผู้ตรวจสอบ ================= -->
+            <h2 style="margin-top: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;">👤 จัดการรายชื่อผู้ตรวจสอบ</h2>
+            <div class="form-card">
+                <div class="input-group">
+                    <label>เพิ่มชื่อพนักงานใหม่</label>
+                    <input type="text" id="newInspectorName" placeholder="เช่น สมชาย, พิวพิว">
+                </div>
+                <button class="btn-add" onclick="addInspector()">เพิ่มชื่อ</button>
+            </div>
+            <div class="table-container" style="max-height: 250px;">
+                <table>
+                    <thead>
+                        <tr><th>รายชื่อพนักงาน</th><th>จัดการ</th></tr>
+                    </thead>
+                    <tbody id="inspectorTableBody">
+                        <tr><td colspan="2" style="text-align:center;">กำลังโหลด...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
             <!-- ================= ระบบกวาดล้างข้อมูลเก่า 70 วัน ================= -->
             <h2 style="margin-top: 30px;">🧹 บำรุงรักษาระบบ (คืนพื้นที่)</h2>
             <div class="form-card form-card-alt" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
@@ -380,11 +399,10 @@
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                         <div class="input-group" style="flex: 1;">
                             <label>แรงดันไฟ (V)</label>
-                            <input type="text" id="retroV" placeholder="เช่น 220/221/220">
-                        </div>
-                        <div class="input-group" style="flex: 1;">
-                            <label>กระแสไฟ (A)</label>
-                            <input type="text" id="retroA" placeholder="เช่น 10/11/10">
+                            <select id="retroV">
+                                <option value="✅ ปกติ">✅ ปกติ</option>
+                                <option value="❌ ผิดปกติ/แจ้งซ่อม">❌ ผิดปกติ/แจ้งซ่อม</option>
+                            </select>
                         </div>
                     </div>
                     
@@ -552,12 +570,11 @@
         </div>
         <div id="formRetro" style="display:none;">
             <div class="input-group" style="margin-bottom:10px;">
-                <label>แรงดันไฟ L1/L2/L3 (V)</label>
-                <input type="text" id="retroShortcutV" placeholder="เช่น 220 / 221 / 220">
-            </div>
-            <div class="input-group" style="margin-bottom:15px;">
-                <label>กระแสไฟ L1/L2/L3 (A)</label>
-                <input type="text" id="retroShortcutA" placeholder="เช่น 10 / 11 / 10">
+                <label>แรงดันไฟ (V)</label>
+                <select id="retroShortcutV">
+                    <option value="✅ ปกติ">✅ ปกติ</option>
+                    <option value="❌ ผิดปกติ/แจ้งซ่อม">❌ ผิดปกติ/แจ้งซ่อม</option>
+                </select>
             </div>
         </div>
         <button class="btn-add" style="width:100%;" onclick="submitFix()">💾 บันทึกการแก้ไข</button>
@@ -706,20 +723,24 @@
         }
     }
 
+    let inspectorsData = [];
+
     // ----------------------------------------------------------------------
-    // 📌 โหลดข้อมูลหลักทั้งหมด (จุดตรวจ, วันหยุด, ประวัติการสแกน)
+    // 📌 โหลดข้อมูลหลักทั้งหมด (จุดตรวจ, วันหยุด, ประวัติการสแกน, ผู้ตรวจสอบ)
     // ----------------------------------------------------------------------
     async function loadCoreData() {
-        // ใช้ Promise.all ให้ดึงข้อมูล 3 ตารางพร้อมกันแบบติดจรวด
-        const [qrRes, scanRes, holRes] = await Promise.all([
+        // ใช้ Promise.all ให้ดึงข้อมูล 4 ตารางพร้อมกันแบบติดจรวด
+        const [qrRes, scanRes, holRes, insRes] = await Promise.all([
             dbClient.from('QRcode').select('*').order('checkpoint', { ascending: true }),
             dbClient.from('scans').select('*').order('created_at', { ascending: false }),
-            dbClient.from('holidays').select('*').order('holiday_date', { ascending: false })
+            dbClient.from('holidays').select('*').order('holiday_date', { ascending: false }),
+            dbClient.from('inspectors').select('*').order('name', { ascending: true })
         ]);
 
         allQRs = qrRes.data || [];
         scansData = scanRes.data || [];
         holidaysData = holRes.data || [];
+        inspectorsData = insRes.data || [];
 
         // ส่งข้อมูลที่ได้ไปวาดตารางลงหน้าเว็บ
         renderHistoryAndStats();
@@ -800,7 +821,6 @@
                         <td>${timeStr}</td>
                         <td><strong>${item.inspector_name || '-'}</strong></td>
                         <td>${item.voltage || '-'}</td>
-                        <td>${item.current_amp || '-'}</td>
                         <td>${getBadge(item.fan_status || '-')}</td>
                         <td>${condDisplay}</td>
                         <td>${getBadge(item.cleanliness || '-')}</td>
@@ -902,6 +922,19 @@
             const dateStr = new Date(h.holiday_date).toLocaleDateString('th-TH');
             // แก้ให้ส่งค่า holiday_date ไปแทน id (เพราะฐานข้อมูลลูกค้าอาจจะไม่มีคอลัมน์ id)
             holBody.innerHTML += `<tr><td>${dateStr}</td><td>${h.description}</td><td><button class="btn-delete" onclick="deleteHoliday('${h.holiday_date}')">🗑️ ลบ</button></td></tr>`;
+        });
+
+        // [1.5] ตารางจัดการผู้ตรวจสอบ
+        const insBody = document.getElementById('inspectorTableBody');
+        insBody.innerHTML = '';
+        if(inspectorsData.length === 0) {
+            insBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color: #64748b;">ไม่มีข้อมูลพนักงานครับ</td></tr>';
+        }
+        inspectorsData.forEach(ins => {
+            insBody.innerHTML += `<tr>
+                <td><strong>${ins.name}</strong></td>
+                <td><button class="btn-delete" onclick="deleteInspector('${ins.name}')">🗑️ ลบ</button></td>
+            </tr>`;
         });
 
         // [2] อัปเดตตัวเลข ลบข้อมูลเก่าเกิน 70 วัน
@@ -1034,7 +1067,6 @@
         
         const inspector = document.getElementById('retroInspector').value;
         const v = document.getElementById('retroV').value;
-        const a = document.getElementById('retroA').value;
         const fan = document.getElementById('retroFan').value;
         const cond = document.getElementById('retroCond').value;
         const clean = document.getElementById('retroClean').value;
@@ -1045,7 +1077,7 @@
         const connections = document.getElementById('retroConnections').value;
         const surrounding = document.getElementById('retroSurrounding').value;
         
-        if (!v || !a) return alert("กรุณากรอกกระแสไฟและแรงดันไฟครับ (หากไม่มีให้ใส่ - แทน)");
+        if (!v) return alert("กรุณาเลือกสถานะแรงดันไฟครับ");
 
         const confirmMsg = `🚨 ยืนยันการบันทึกข้อมูลของตู้ ${cp}\nประจำวันที่ ${dateVal} ใช่หรือไม่?\n\n(หากวันนั้นมีประวัติอยู่แล้ว ระบบจะทำการลบทับของเดิมทั้งหมด)`;
         if (!confirm(confirmMsg)) return;
@@ -1087,7 +1119,6 @@
                 created_at: insertDate.toISOString(),
                 inspector_name: inspector,
                 voltage: v,
-                current_amp: a,
                 fan_status: fan,
                 general_condition: cond,
                 cleanliness: clean,
@@ -1105,8 +1136,7 @@
             alert("✅ บันทึกข้อมูลย้อนหลังสำเร็จ! (สามารถตรวจสอบได้ที่หน้าประวัติ)");
             
             // ล้างค่าแค่แรงดันไฟ เผื่อแอดมินแก้ตู้ถัดไปของวันนั้นต่อ
-            document.getElementById('retroV').value = '';
-            document.getElementById('retroA').value = '';
+            document.getElementById('retroV').value = '✅ ปกติ';
             
             // โหลดข้อมูลใหม่เพื่ออัปเดตตารางทันทีโดยไม่ต้องรีเฟรชหน้าเว็บ (ยังอยู่หน้าเดิม)
             loadCoreData();
@@ -1258,6 +1288,26 @@
         else loadCoreData();
     }
 
+    async function addInspector() {
+        const name = document.getElementById('newInspectorName').value.trim();
+        if(!name) return alert('กรุณาพิมพ์ชื่อพนักงานครับ');
+        
+        const { error } = await dbClient.from('inspectors').insert([{ name: name }]);
+        if(error) alert("Error: " + error.message);
+        else {
+            alert(`✅ เพิ่มชื่อ ${name} สำเร็จ!`);
+            document.getElementById('newInspectorName').value = '';
+            loadCoreData();
+        }
+    }
+
+    async function deleteInspector(name) {
+        if(!confirm(`ลบชื่อพนักงาน "${name}" ออกจากระบบ?`)) return;
+        const { error } = await dbClient.from('inspectors').delete().eq('name', name);
+        if(error) alert("Error: " + error.message);
+        else loadCoreData();
+    }
+
     // ----------------------------------------------------------------------
     // 📌 ระบบแก้ไขปัญหา "จุดตกหล่น" (เปิดป๊อปอัพ และเซฟข้อมูล)
     // ----------------------------------------------------------------------
@@ -1296,12 +1346,12 @@
             // แบบที่ 1: ละเว้นการตรวจ
             const reason = document.getElementById('exemptReason').value;
             if(!reason) return alert('กรุณาใส่เหตุผล');
-            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (ละเว้น)", general_condition: reason, voltage: "-", current_amp: "-", fan_status: "-", cleanliness: "-", meter_condition: "-", indicator_lights: "-", internal_wiring: "-", wire_connections: "-", surrounding_area: "-", image_url: "https://placehold.co/400x300/f59e0b/ffffff?text=Exempted+by+Admin" };
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (ละเว้น)", general_condition: reason, voltage: "-", fan_status: "-", cleanliness: "-", meter_condition: "-", indicator_lights: "-", internal_wiring: "-", wire_connections: "-", surrounding_area: "-", image_url: "https://placehold.co/400x300/f59e0b/ffffff?text=Exempted+by+Admin" };
         } else {
             // แบบที่ 2: คีย์ข้อมูลตัวเลขย้อนหลัง
-            const v = document.getElementById('retroShortcutV').value; const a = document.getElementById('retroShortcutA').value;
-            if(!v || !a) return alert('กรุณากรอกตัวเลขให้ครบ');
-            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (คีย์ย้อนหลัง)", voltage: v, current_amp: a, fan_status: "✅ ปกติ", general_condition: "✅ ปกติ", cleanliness: "✅ สะอาด", meter_condition: "✅ ปกติ", indicator_lights: "✅ ปกติ", internal_wiring: "✅ ปกติ", wire_connections: "✅ ปกติ", surrounding_area: "✅ ปกติ", image_url: "https://placehold.co/400x300/3b82f6/ffffff?text=Retroactive+Entry" };
+            const v = document.getElementById('retroShortcutV').value;
+            if(!v) return alert('กรุณาเลือกสถานะแรงดันไฟ');
+            payload = { checkpoint_name: currentFixPoint, created_at: yd.toISOString(), inspector_name: "แอดมิน (คีย์ย้อนหลัง)", voltage: v, fan_status: "✅ ปกติ", general_condition: "✅ ปกติ", cleanliness: "✅ สะอาด", meter_condition: "✅ ปกติ", indicator_lights: "✅ ปกติ", internal_wiring: "✅ ปกติ", wire_connections: "✅ ปกติ", surrounding_area: "✅ ปกติ", image_url: "https://placehold.co/400x300/3b82f6/ffffff?text=Retroactive+Entry" };
         }
         
         // ส่งข้อมูลขึ้นฐานข้อมูล
@@ -1445,7 +1495,6 @@
             { header: 'วัน-เวลาบันทึก', key: 'date', width: 22 },
             { header: 'ผู้ตรวจสอบ', key: 'inspector', width: 20 },
             { header: 'แรงดัน (V)', key: 'voltage', width: 15 },
-            { header: 'กระแส (A)', key: 'current', width: 15 },
             { header: 'พัดลม', key: 'fan', width: 15 },
             { header: 'สภาพตู้', key: 'condition', width: 15 },
             { header: 'ความสะอาด', key: 'cleanliness', width: 15 },
@@ -1467,7 +1516,6 @@
                 date: new Date(s.created_at).toLocaleString('th-TH'),
                 inspector: s.inspector_name || '',
                 voltage: s.voltage || '',
-                current: s.current_amp || '',
                 fan: s.fan_status || '',
                 condition: s.general_condition || '',
                 cleanliness: s.cleanliness || '',
@@ -1495,15 +1543,15 @@
                         extension: 'jpeg', // รองรับ jpeg/png
                     });
                     
-                    // ใส่รูปภาพลงในเซลล์ (คอลัมน์ที่ 13 = รูปหน้างาน, แถวเริ่มที่ 1)
+                    // ใส่รูปภาพลงในเซลล์ (คอลัมน์ที่ 12 = รูปหน้างาน, แถวเริ่มที่ 1)
                     // ใส่ padding เล็กน้อย (0.1) ให้รูปไม่ติดขอบเซลล์เกินไป
                     sheet.addImage(imageId, {
-                        tl: { col: 13.1, row: i + 1.1 },
+                        tl: { col: 12.1, row: i + 1.1 },
                         ext: { width: 130, height: 90 }
                     });
                 } catch (e) {
                     console.error('Failed to load image:', e);
-                    row.getCell(14).value = '(โหลดรูปไม่ได้)';
+                    row.getCell(13).value = '(โหลดรูปไม่ได้)';
                 }
             }
         }

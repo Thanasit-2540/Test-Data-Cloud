@@ -71,25 +71,19 @@
     <div id="mainForm">
     <div class="form-group">
         <label>ชื่อผู้ตรวจสอบ: <span class="mm">စစ်ဆေးသူအမည်</span></label>
-        <input type="text" id="inspector_name" placeholder="ระบุชื่อของคุณ / အမည်ရေးပါ">
+        <select id="inspector_name" onchange="toggleOtherInspector(this)">
+            <option value="">-- เลือกชื่อผู้ตรวจ / အမည်ရွေးပါ --</option>
+            <option value="อื่นๆ">อื่นๆ (ระบุชื่อ) / အခြား (အမည်ရေးပါ)</option>
+        </select>
+        <input type="text" id="inspector_name_other" placeholder="พิมพ์ชื่อของคุณตรงนี้..." style="display:none; margin-top:10px;">
     </div>
 
     <div class="form-group">
-        <label>แรงดันไฟฟ้า (V) - L1 / L2 / L3: <span class="mm">လျှပ်စစ်ဗို့အား (V)</span></label>
-        <div class="input-row">
-            <input type="number" id="v1" placeholder="L1">
-            <input type="number" id="v2" placeholder="L2">
-            <input type="number" id="v3" placeholder="L3">
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label>กระแสไฟฟ้า (A) - L1 / L2 / L3: <span class="mm">လျှပ်စစ်စီးကြောင်း (A)</span></label>
-        <div class="input-row">
-            <input type="number" id="a1" placeholder="L1">
-            <input type="number" id="a2" placeholder="L2">
-            <input type="number" id="a3" placeholder="L3">
-        </div>
+        <label>แรงดันไฟฟ้า (V): <span class="mm">လျှပ်စစ်ဗို့အား (V)</span></label>
+        <select id="voltage_status">
+            <option value="✅ ปกติ">✅ ปกติ / ကောင်းသည်</option>
+            <option value="❌ ผิดปกติ/แจ้งซ่อม">❌ ผิดปกติ/แจ้งซ่อม / ပုံမှန်မဟုတ်/ပြင်ဆင်ရန်</option>
+        </select>
     </div>
 
     <div class="form-group">
@@ -249,9 +243,37 @@
         const config = await res.json();
         dbClient = supabase.createClient(config.url, config.key);
         
+        // ดึงรายชื่อผู้ตรวจสอบมาใส่ใน Dropdown
+        loadInspectors();
+
         // เมื่อเชื่อมต่อเสร็จ ให้เช็คทันทีว่าตู้นี้โดนตรวจไปแล้วหรือยังในวันนี้?
         checkAlreadyScannedToday();
     }
+    
+    async function loadInspectors() {
+        const { data, error } = await dbClient.from('inspectors').select('name').order('name');
+        if (data) {
+            const select = document.getElementById('inspector_name');
+            // เริ่มต้นจากออปชั่นเดิม (เลือกชื่อ, อื่นๆ)
+            let optionsHTML = `<option value="">-- เลือกชื่อผู้ตรวจ / အမည်ရွေးပါ --</option>`;
+            data.forEach(ins => {
+                optionsHTML += `<option value="${ins.name}">${ins.name}</option>`;
+            });
+            optionsHTML += `<option value="อื่นๆ">อื่นๆ (ระบุชื่อ) / အခြား (အမည်ရေးပါ)</option>`;
+            select.innerHTML = optionsHTML;
+        }
+    }
+
+    function toggleOtherInspector(selectElement) {
+        const otherInput = document.getElementById('inspector_name_other');
+        if (selectElement.value === 'อื่นๆ') {
+            otherInput.style.display = 'block';
+            otherInput.focus();
+        } else {
+            otherInput.style.display = 'none';
+        }
+    }
+
     initSupabase();
 
     // ----------------------------------------------------------------------
@@ -310,17 +332,15 @@
     // 📌 ฟังก์ชันส่งข้อมูลเข้า Cloud: (กดปุ่มบันทึก)
     // ----------------------------------------------------------------------
     async function submitForm() {
-        const inspector = document.getElementById('inspector_name').value;
-        const v1 = document.getElementById('v1').value;
-        const v2 = document.getElementById('v2').value;
-        const v3 = document.getElementById('v3').value;
-        const a1 = document.getElementById('a1').value;
-        const a2 = document.getElementById('a2').value;
-        const a3 = document.getElementById('a3').value;
+        let inspector = document.getElementById('inspector_name').value;
+        if (inspector === 'อื่นๆ') {
+            inspector = document.getElementById('inspector_name_other').value;
+        }
+        const voltage = document.getElementById('voltage_status').value;
 
         // เช็คว่ากรอกข้อมูลครบไหม
-        if (!inspector || !v1 || !a1 || !selectedFile) {
-            alert("กรุณากรอกข้อมูลและถ่ายรูปให้ครบถ้วน!");
+        if (!inspector || !voltage || !selectedFile) {
+            alert("กรุณากรอกข้อมูลให้ครบและอย่าลืมถ่ายรูปครับ! / အချက်အလက်အပြည့်အစုံဖြည့်ပြီး ဓာတ်ပုံရိုက်ပါ");
             return;
         }
 
@@ -373,16 +393,11 @@
             const { data: publicUrlData } = dbClient.storage.from('checkpoint-images').getPublicUrl(fileName);
             const imageUrl = publicUrlData.publicUrl;
 
-            // เอาค่าที่กรอกมาต่อกันให้เป็นสตริง (เช่น 220 / 221 / 220)
-            const voltage = `${v1} / ${v2} / ${v3}`;
-            const current = `${a1} / ${a2} / ${a3}`;
-
             // บันทึกลงฐานข้อมูลตาราง scans
             const { error: dbError } = await dbClient.from('scans').insert([{
                 checkpoint_name: checkpointId,
                 inspector_name: inspector,
                 voltage: voltage,
-                current_amp: current,
                 fan_status: document.getElementById('fan_status').value,
                 general_condition: document.getElementById('general_condition').value,
                 cleanliness: document.getElementById('cleanliness').value,
