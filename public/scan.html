@@ -332,15 +332,41 @@
     // 📌 ฟังก์ชันส่งข้อมูลเข้า Cloud: (กดปุ่มบันทึก)
     // ----------------------------------------------------------------------
     async function submitForm() {
-        let inspector = document.getElementById('inspector_name').value;
+        let inspectorSelect = document.getElementById('inspector_name');
+        let inspector = inspectorSelect.value;
+        let isOtherBlank = false;
+        
         if (inspector === 'อื่นๆ') {
-            inspector = document.getElementById('inspector_name_other').value;
+            inspector = document.getElementById('inspector_name_other').value.trim();
+            if (!inspector) isOtherBlank = true;
+        } else {
+            inspector = inspector.trim();
         }
+
+        // เช็คว่าเลือกชื่อคนตรวจหรือยัง
+        if (!inspector) {
+            alert("กรุณาเลือกหรือพิมพ์ชื่อผู้ตรวจสอบครับ! / ကျေးဇူးပြု၍ စစ်ဆေးသူအမည်ကို ရွေးပါ");
+            if (isOtherBlank) {
+                let otherInput = document.getElementById('inspector_name_other');
+                otherInput.focus();
+                otherInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                inspectorSelect.focus();
+                inspectorSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
         const voltage = document.getElementById('voltage_status').value;
 
-        // เช็คว่ากรอกข้อมูลครบไหม
-        if (!inspector || !voltage || !selectedFile) {
-            alert("กรุณากรอกข้อมูลให้ครบและอย่าลืมถ่ายรูปครับ! / အချက်အလက်အပြည့်အစုံဖြည့်ပြီး ဓာတ်ပုံရိုက်ပါ");
+        // เช็คว่าอัปโหลดรูปภาพแล้วหรือยัง
+        if (!selectedFile) {
+            alert("กรุณาถ่ายรูปหน้างานก่อนส่งครับ! / ကျေးဇူးပြု၍ ဓာတ်ပုံရိုက်ပါ");
+            let fileInput = document.getElementById('fileInput');
+            fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // แฟลชสีพื้นหลังนิดหน่อยให้จุดสนใจ
+            fileInput.parentElement.style.backgroundColor = '#fee2e2';
+            setTimeout(() => { fileInput.parentElement.style.backgroundColor = ''; }, 1000);
             return;
         }
 

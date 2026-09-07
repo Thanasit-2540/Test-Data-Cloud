@@ -784,7 +784,8 @@
         // ====== คำนวณสถิติรายวันก่อน (วนครบทุกรายการ) ======
         scansData.forEach(item => {
             const itemDateStr = new Date(item.created_at).toLocaleDateString('th-TH');
-            const hasIssue = !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
+            const hasIssue = !(item.voltage||'ปกติ').includes('ปกติ') ||
+                             !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
                              !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
                              !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-') ||
                              !(item.meter_condition||'ปกติ').includes('ปกติ') ||
@@ -1079,11 +1080,11 @@
         
         if (!v) return alert("กรุณาเลือกสถานะแรงดันไฟครับ");
 
-        const confirmMsg = `🚨 ยืนยันการบันทึกข้อมูลของตู้ ${cp}\nประจำวันที่ ${dateVal} ใช่หรือไม่?\n\n(หากวันนั้นมีประวัติอยู่แล้ว ระบบจะทำการลบทับของเดิมทั้งหมด)`;
+        const confirmMsg = `🚨 ยืนยันการบันทึกข้อมูลของตู้ ${cp}\nประจำวันที่ ${dateVal} ใช่หรือไม่?\n\n(หากวันนั้นมีประวัติอยู่แล้ว ระบบจะอัปเดตเนื้อหาให้ใหม่ โดยยังคงใช้รูปภาพหน้างานเดิมครับ)`;
         if (!confirm(confirmMsg)) return;
 
         try {
-            // 1. นั่งไทม์แมชชีนกลับไปลบรูป+ประวัติของตู้นั้นในวันนั้นทิ้งก่อน
+            // 1. นั่งไทม์แมชชีนกลับไปเช็คว่าตู้นี้ในวันนั้นมีรูปเก่าไหม
             const targetDateStart = new Date(dateVal);
             targetDateStart.setHours(0,0,0,0);
             const targetDateEnd = new Date(dateVal);
@@ -1095,17 +1096,17 @@
                 .eq('checkpoint_name', cp)
                 .gte('created_at', targetDateStart.toISOString())
                 .lte('created_at', targetDateEnd.toISOString());
-                
+            
+            let preservedImageUrl = "https://placehold.co/400x300/8b5cf6/ffffff?text=Edited+by+Admin";
+            
             if (oldData && oldData.length > 0) {
-                const oldImages = oldData.map(s => {
-                    if(!s.image_url) return null;
-                    const p = s.image_url.split('/');
-                    return p[p.length-1];
-                }).filter(n => n && !n.includes('placehold'));
-                
-                if (oldImages.length > 0) {
-                    await dbClient.storage.from('checkpoint-images').remove(oldImages);
+                // เอารูปเก่ามาเก็บไว้ (ดึงจากแถวแรกสุดที่เจอ)
+                const firstOldWithImg = oldData.find(s => s.image_url);
+                if (firstOldWithImg) {
+                    preservedImageUrl = firstOldWithImg.image_url;
                 }
+
+                // ลบประวัติเก่าทิ้ง (แต่ไม่ลบรูปจาก Storage)
                 const oldIds = oldData.map(s => s.id);
                 await dbClient.from('scans').delete().in('id', oldIds);
             }
@@ -1127,7 +1128,7 @@
                 internal_wiring: wiring,
                 wire_connections: connections,
                 surrounding_area: surrounding,
-                image_url: "https://placehold.co/400x300/8b5cf6/ffffff?text=Edited+by+Admin" // ใส่รูป placeholder สีม่วงแทนรูปถ่าย
+                image_url: preservedImageUrl // ใช้รูปเดิมที่เก็บไว้ หรือ รูป placeholder ถ้าไม่เคยมีรูป
             };
 
             const { error } = await dbClient.from('scans').insert([payload]);
