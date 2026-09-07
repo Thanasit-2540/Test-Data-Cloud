@@ -784,15 +784,15 @@
         // ====== คำนวณสถิติรายวันก่อน (วนครบทุกรายการ) ======
         scansData.forEach(item => {
             const itemDateStr = new Date(item.created_at).toLocaleDateString('th-TH');
-            const hasIssue = !(item.voltage||'ปกติ').includes('ปกติ') ||
-                             !(item.fan_status||'').includes('ปกติ') && !(item.fan_status||'').includes('ละเว้น') || 
-                             !(item.general_condition||'').includes('ปกติ') && !(item.inspector_name||'').includes('แอดมิน') || 
-                             !(item.cleanliness||'').includes('สะอาด') && !(item.cleanliness||'').includes('-') ||
-                             !(item.meter_condition||'ปกติ').includes('ปกติ') ||
-                             !(item.indicator_lights||'ปกติ').includes('ปกติ') ||
-                             !(item.internal_wiring||'ปกติ').includes('ปกติ') ||
-                             !(item.wire_connections||'ปกติ').includes('ปกติ') ||
-                             !(item.surrounding_area||'ปกติ').includes('ปกติ');
+            const hasIssue = (item.voltage || '').includes('❌') ||
+                             (item.fan_status || '').includes('❌') || 
+                             (item.general_condition || '').includes('❌') || 
+                             (item.cleanliness || '').includes('⚠️') ||
+                             (item.meter_condition || '').includes('❌') ||
+                             (item.indicator_lights || '').includes('❌') ||
+                             (item.internal_wiring || '').includes('❌') ||
+                             (item.wire_connections || '').includes('❌') ||
+                             (item.surrounding_area || '').includes('❌');
             if (itemDateStr === todayStr) { checkedToday.add(item.checkpoint_name); if (hasIssue) issuesTodayCount++; }
             if (itemDateStr === yesterdayStr) { checkedYesterday.add(item.checkpoint_name); }
         });
