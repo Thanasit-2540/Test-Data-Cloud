@@ -119,8 +119,7 @@
 </div>
 
 <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('history', this)">📋 ข้อมูลวันนี้</button>
-    <button class="tab-btn" onclick="switchTab('pastData', this)">🕰️ ประวัติย้อนหลัง</button>
+    <button class="tab-btn active" onclick="switchTab('history', this)">📋 ประวัติการตรวจเช็ค</button>
     <button class="tab-btn" onclick="switchTab('qrmanager', this)">🔒 แอดมิน: จัดการระบบ & วันหยุด</button>
 </div>
 
@@ -219,54 +218,6 @@
         </table>
     </div>
 
-</div>
-
-<!-- ======================================================= -->
-<!-- TAB: Past History (ประวัติการตรวจย้อนหลัง) -->
-<!-- ======================================================= -->
-<div id="pastData" class="tab-content">
-    <div class="export-section" style="padding: 15px; margin-bottom: 20px;">
-        <div>
-            <h2 style="margin:0 0 5px 0; font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                <span style="font-size:1.3em;">🕰️</span> ค้นหาประวัติการตรวจย้อนหลัง
-            </h2>
-            <p style="color:var(--text-muted); margin:0; font-size:0.9em;">
-                เลือกระบุวันที่เพื่อดูข้อมูล (หากไม่เลือก จะแสดงข้อมูลของวันนี้โดยอัตโนมัติ)
-            </p>
-        </div>
-        <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div class="input-group">
-                <label style="font-size:0.85em; color:var(--text-muted);">เลือกวันที่ต้องการดู</label>
-                <input type="date" id="pastSearchDate" style="padding:10px;" onchange="renderPastHistory()">
-            </div>
-            <button class="btn-add" style="background:#64748b;" onclick="document.getElementById('pastSearchDate').value=''; renderPastHistory();">เคลียร์ (ดูวันนี้)</button>
-        </div>
-    </div>
-    
-    <div class="table-container" style="max-height: 600px;">
-        <table>
-            <thead>
-                <tr>
-                    <th>โซนตู้ไฟ</th>
-                    <th>วัน-เวลาบันทึก</th>
-                    <th>ผู้ตรวจสอบ</th>
-                    <th>แรงดัน (V)</th>
-                    <th>พัดลม</th>
-                    <th>สภาพตู้</th>
-                    <th>ความสะอาด</th>
-                    <th>อุปกรณ์วัด</th>
-                    <th>ไฟโชว์</th>
-                    <th>สายไฟภายใน</th>
-                    <th>จุดต่อสายไฟ</th>
-                    <th>บริเวณรอบตู้</th>
-                    <th>รูปหน้างาน</th>
-                </tr>
-            </thead>
-            <tbody id="pastTableBody">
-                <tr><td colspan="13" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
-            </tbody>
-        </table>
-    </div>
 </div>
 
 <!-- ======================================================= -->
@@ -793,7 +744,6 @@
 
         // ส่งข้อมูลที่ได้ไปวาดตารางลงหน้าเว็บ
         renderHistoryAndStats();
-        renderPastHistory();
         renderAdminTab();
     }
 
@@ -1104,59 +1054,6 @@
             } else {
                 missedBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#10b981; font-weight:bold; padding:20px;">🎉 เมื่อวานไม่มีจุดตกหล่นเลยครับ! เยี่ยมมาก</td></tr>';
             }
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    // 📌 วาดหน้าจอ "ประวัติการตรวจย้อนหลัง"
-    // ----------------------------------------------------------------------
-    function renderPastHistory() {
-        const tbody = document.getElementById('pastTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        
-        const searchDateInput = document.getElementById('pastSearchDate').value;
-        const targetDateObj = searchDateInput ? new Date(searchDateInput) : new Date();
-        const targetDateStr = targetDateObj.toLocaleDateString('th-TH');
-
-        const getBadge = (text) => (text.includes('ปกติ') || text.includes('สะอาด'))
-            ? `<span class="badge badge-ok">${text}</span>`
-            : `<span class="badge badge-warn">${text}</span>`;
-
-        let html = '';
-        scansData.forEach(item => {
-            const itemDateStr = new Date(item.created_at).toLocaleDateString('th-TH');
-            if (itemDateStr === targetDateStr) {
-                const timeStr = new Date(item.created_at).toLocaleTimeString('th-TH');
-                const isExempt = (item.inspector_name || '').includes('ละเว้น');
-                const condDisplay = isExempt ? `<span class="badge badge-warn">${item.general_condition}</span>` : getBadge(item.general_condition || '-');
-                
-                let imgHtml = item.image_url 
-                    ? `<img src="${item.image_url}" class="thumb" onclick="showImg('${item.image_url}')">`
-                    : '<span style="color:#94a3b8; font-size:0.8em;">ไม่มีรูป</span>';
-
-                html += `<tr style="${isExempt ? 'background-color: #fffbeb;' : ''}">
-                    <td><strong>${item.checkpoint_name}</strong></td>
-                    <td>${itemDateStr} ${timeStr}</td>
-                    <td><strong>${item.inspector_name || '-'}</strong></td>
-                    <td>${item.voltage || '-'}</td>
-                    <td>${getBadge(item.fan_status || '-')}</td>
-                    <td>${condDisplay}</td>
-                    <td>${getBadge(item.cleanliness || '-')}</td>
-                    <td>${getBadge(item.meter_condition || '-')}</td>
-                    <td>${getBadge(item.indicator_lights || '-')}</td>
-                    <td>${getBadge(item.internal_wiring || '-')}</td>
-                    <td>${getBadge(item.wire_connections || '-')}</td>
-                    <td>${getBadge(item.surrounding_area || '-')}</td>
-                    <td>${imgHtml}</td>
-                </tr>`;
-            }
-        });
-
-        if (!html) {
-            tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:20px; color:#64748b;">ไม่มีข้อมูลการตรวจเช็คในวันที่ ${targetDateStr}</td></tr>`;
-        } else {
-            tbody.innerHTML = html;
         }
     }
 
